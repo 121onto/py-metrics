@@ -7,9 +7,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from py_metrics import caches
-from py_metrics import base
-from py_metrics import utils
+from py_metrics import caches, base
 
 ###########################################################################
 # Featurize
