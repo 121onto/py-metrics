@@ -72,7 +72,6 @@ class Reg(object):
         # Fit the regression
         self.beta, self.sse, _, _ = lstsq(x, y)
         self.ssy = ((y - y.mean()) ** 2).sum()
-        self.r2 = (1 - self.sse / self.ssy)
         self._is_fit = True
 
         # Errors
@@ -102,9 +101,67 @@ class Reg(object):
         return np.matmul(x, self.beta)
 
 
+    def r2(self, estimator='r-til2'):
+        """Compute R2 measure of fit.
+
+        Parameters
+        ----------
+        estimator: string
+            One of 'r2', 'r-bar2', or 'r-til2' (default: 'r-til2').
+
+        Returns
+        -------
+        float
+
+        Discussion
+        ----------
+        r2 is a commonly reported measure of regression fit.  One problem with
+        r2; which is partially corrected by r-bar2 and fully corrected by r-til2;
+        is that r2 necessarily increases when regressors are added to a
+        regression model.  Another issue with r2 is that it uses biased
+        estimators.  Note that r-til2 uses o_til which is used in computing the
+        forecast error.  It is thus a much better measure of out-of-sample fit.
+
+        r-til2 is popular for model comparison and selection, especially in high
+        -dimensional (non- parametric) contexts.  Models with high r-til2 are
+        better models in terms of expected out of sample squared error.
+        In contrast, r2 cannot be used for model selection, as it necessarily
+        increases when regressors are added to a regression model.
+
+        Always prefer 'r-til2' over the alternatives.
+        """
+        if estimator not in ('r2', 'r-bar2', 'r-til2'):
+            raise ValueError('''
+            `estimator` must be one of 'r2', 'r-bar2', or 'r-til2'
+            in call to `Reg.r2`.''')
+
+        o_yhat = self.ssy / self.n
+        if estimator == 'r2':
+            r2 = (1 - (self.o_hat / o_yhat))
+        elif estimator == 'r-bar2':
+            r2 = (1 - (n-1) / (n-k) * (self.o_hat / o_yhat))
+        elif estimator == 'r-til2':
+            r2 = (1 - (self.o_til / o_yhat))
+        else: # NOTE: this code should never execute
+            r2 = None
+
+        return r2
+
+
     def vce(self, estimator='v_hc2'):
         """Asymptotic covariance matrix estimation.
 
+        Parameters
+        ----------
+        estimator: string
+            One of 'v_0', 'v_hc0', 'v_hc1', 'v_hc2', 'v_hc3'.
+
+        Returns
+        -------
+        float
+
+        Discussion
+        ----------
         The four estimators HC0, HC1, HC2 and HC3 are collectively called
         robust, heteroskedasticity- consistent, or heteroskedasticity-robust
         covariance matrix estimators. The HC0 estimator was Örst developed
