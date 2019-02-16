@@ -5,9 +5,8 @@ import os
 from setuptools import setup, find_packages
 from setuptools.command.develop import develop
 
-import py_metrics
-
-__version__ = py_metrics.__version__
+__version__ = 'v0.0.1'
+__appname__ = 'py_metrics'
 
 class Cache(develop):
     # Add custom build step to setup.py
@@ -27,7 +26,7 @@ class Cache(develop):
 
 
 setup(
-    name=py_metrics.__appname__,
+    name=__appname__,
     version=__version__,
     python_requires='>=3.6',
     description='Use python for econometrics',
