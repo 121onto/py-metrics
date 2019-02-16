@@ -12,18 +12,24 @@ Getting Started
 Developer Installation
 ----------------------
 
-1. (*Optional*) Create a new virtualenv:
+Note: this repo is compatible with python 3.6 only.
 
-    ``` bash
-    pip install virtualenv
-    virtualenv --python=python3 ~/envs/py-metrics
-    source ~/envs/py-metrics/bin/activate
-    ```
-
-2. Clone and install this repository:
+1. Clone this repository:
 
     ```bash
     git clone git@github.com:121onto/py-metrics.git
-    pip install --editable py-metrics
     cd py-metrics
+    ```
+
+2. Create a new virtualenv (assumes you're using virtualenvwrapper):
+
+    ``` bash
+    mkv py-metrics --python=python3
+    actv
+    ```
+
+3. Install the repository in editable mode:
+
+    ```bash
+    pip install -e .
     ```
