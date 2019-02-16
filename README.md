@@ -13,9 +13,9 @@ Getting Started
 
 For more detailed examples, see the examples directory.
 
-1. Run a regression:
+0. Setup workspace:
 
-    ``` python
+    ```python3
     from __future__ import print_function
     from __future__ import absolute_import
     from __future__ import division
@@ -23,17 +23,19 @@ For more detailed examples, see the examples directory.
     import pandas as pd
     import numpy as np
 
-    from py_metrics import caches
-    from py_metrics.base import Reg
+    from py_metrics import caches, Reg
 
-    # Load data
     frame = pd.read_csv(caches.data_path('cps09mar.txt'))
     frame['wage'] = frame['earnings'] / (frame['week'] * frame['hours'])
     frame['log(wage)'] = np.log(frame['wage'])
-    frame['experience'] = np.maximum(frame['age'] - frame['education'] - 6, 0)
+    ```
 
-    # Setup regression
-    x = ['intercept', 'female', 'experience']
+
+1. Run a regression:
+
+    ``` python3
+    # Initialize
+    x = ['intercept', 'female', 'education']
     y = 'log(wage)'
     reg = Reg(x, y)
 
@@ -42,7 +44,15 @@ For more detailed examples, see the examples directory.
     reg.summarize()
     ```
 
-2. Estimate a covariance matrix: ...
+2. Estimate a covariance matrix:
+
+    ```python3
+    vce = pd.DataFrame(
+        reg.vce('v_hc3').tolist(),
+        index=reg.x_cols,
+        columns=reg.x_cols)
+    print(vce)
+    ```
 
 
 Developer Installation
