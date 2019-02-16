@@ -24,7 +24,7 @@ For more detailed examples, see the examples directory.
     import numpy as np
 
     from py_metrics import caches
-    from py_metrics import reg
+    from py_metrics.base import Reg
 
     # Load data
     frame = pd.read_csv(caches.data_path('cps09mar.txt'))
