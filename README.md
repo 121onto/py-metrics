@@ -75,7 +75,7 @@ Additional examples with more detail are available in the examples directory.
 Developer Installation
 ----------------------
 
-Note: this repo is compatible with python 3.6 only.
+Note: this repo has been tested with Python 3.6 only.
 
 1. Clone this repository:
 
