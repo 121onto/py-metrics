@@ -188,6 +188,4 @@ def reg_3():
     reg.fit(frame)
 
     # Chapter 4.19, pages 126-127
-    print(frame.shape[0]) # OUT: 46,943
-    print(reg.o_hat) # OUT: 0.565
     reg.summarize()  # OUT: table 4.2, page 127

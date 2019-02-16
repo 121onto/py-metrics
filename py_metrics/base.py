@@ -15,12 +15,12 @@ from numpy.linalg import cholesky
 from py_metrics import caches
 
 ###########################################################################
-# Estimator
+# OLS
 ###########################################################################
 
 class Reg(object):
     def __init__(self, x_cols, y_col):
-        # TODO (121onto): enforce types
+        # TODO (121onto): enforce types, ensure everything gets defined
 
         # Columns defining estimation
         self.x_cols = x_cols
@@ -292,14 +292,11 @@ class Reg(object):
             You must run `Reg.fit` before running `Reg.summarize`.''')
 
         summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
-        summary['std_err ({})'.format(vce)] = self.std_err(estimator=vce)
-        print(summary)
-
-
-###########################################################################
-# Covariance matrix estimation
-###########################################################################
-
-class AVar(object):
-    def __init__(self):
-        pass
+        summary['se({})'.format(vce)] = self.std_err(estimator=vce)
+        print('='*80)
+        print('y: {}'.format(self.y_col), '\n')
+        print(summary, '\n')
+        print('n: {}'.format(self.n))
+        print('k: {}'.format(self.k))
+        print('s_hat: {}'.format(self.s_hat))
+        print('R2: {}'.format(self.r2()))
