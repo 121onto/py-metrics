@@ -48,7 +48,7 @@ For more detailed examples, see the examples directory.
 
     ```python3
     vce = pd.DataFrame(
-        reg.vce('v_hc3').tolist(),
+        reg.vce('v_hc3'),
         index=reg.x_cols,
         columns=reg.x_cols)
     print(vce)
