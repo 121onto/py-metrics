@@ -11,7 +11,7 @@ I primarily used his January 2019 version during the development of this package
 Installation
 ------------
 
-Note: this repo is compatible with python 3.6 only.
+Note: this repo has been tested with Python 3.6 only.
 
 1. Install from source
 
