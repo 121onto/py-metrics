@@ -35,7 +35,7 @@ class Reg(object):
     def fit(self, frame):
         # Prepare the data
         x = frame[self.x].copy(deep=True).astype(np.float32).values
-        y = frame[self.y].copy(deep=True).astype(np.float32).valuse
+        y = frame[self.y].copy(deep=True).astype(np.float32).values
 
         # other operations
         self.qxx = np.matmul(np.transpose(x), x)
@@ -48,23 +48,23 @@ class Reg(object):
 
         # Compute summary stats
         self.ssy = ((y - y.mean()) ** 2).sum()
-        self.omega_hat = self.see / frame.shape[0]
+        self.omega_hat = self.sse / frame.shape[0]
         self.r2 = (1 - self.sse / self.ssy)
 
 
-    def predict(frame):
+    def predict(self, frame):
         x = frame[self.x].copy(deep=True).astype(np.float32).values
         return np.matmul(x, self.beta)
 
 
-    def leverage(frame):
+    def leverage(self, frame):
         # SOURCE: https://stackoverflow.com/a/39534036/759442
         if self.h is not None:
             return self.h
         x = frame[self.x].copy(deep=True).astype(np.float32).values
         qxx_u = cholesky(self.qxx)
-        z = lstsq(np.transpose(qxx_u), np.transpose(x))
-        self.h = np.square(z).sum(axis=1)
+        z, _, _, _ = lstsq(qxx_u, np.transpose(x))
+        self.h = np.square(z).sum(axis=0)
         return self.h
 
 
