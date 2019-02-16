@@ -16,15 +16,31 @@ from py_metrics import utils
 ###########################################################################
 
 def featurize(frame):
-    # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
     frame['intercept'] = 1.0
+
+    frame['married'] = frame['marital'].isin([1,2,3]).astype(int)
+    frame['formerly_married'] = frame['marital'].isin([4,5,6]).astype(int)
+
+    frame['female*union'] = frame['female'] * frame['union']
+    frame['male*union'] = (1 - frame['female']) * frame['union']
+    frame['female*married'] = frame['female'] * frame['married']
+    frame['male*married'] = (1 - frame['female']) * frame['married']
+    frame['female*fromerly_married'] = frame['female'] * frame['formerly_married']
+    frame['male*formerly_married'] = (1 - frame['female']) * frame['formerly_married']
+
+    frame['hispanic'] = frame['hisp']
+    frame['black'] = (frame['race'] == 2).astype(int)
+    frame['american_indian'] = (frame['race'] == 3).astype(int)
+    frame['asian'] = (frame['race'] == 4).astype(int)
+    frame['mixed_race'] = (frame['race'] >= 6).astype(int)
 
     frame['wage'] = frame['earnings'] / (frame['week'] * frame['hours'])
     frame['log(wage)'] = np.log(frame['wage'])
 
     frame['experience'] = np.maximum(frame['age'] - frame['education'] - 6, 0)
     frame['experience^2'] = frame['experience'] ** 2
+    frame['experience^2/100'] = frame['experience'] ** 2 / 100
     frame['education*log(wage)'] = frame['education'] * frame['log(wage)']
 
     return frame
@@ -86,6 +102,17 @@ def filter_2(frame):
     return frame
 
 
+def filter_3(frame):
+    # Chapter 3.7 of Hansen's text (January 2019 edition)
+    frame = frame.copy(deep=True)
+
+    # Education
+    mask = (frame['education'] >= 12)
+    frame = frame[mask]
+
+    return frame
+
+
 ###########################################################################
 # Regression
 ###########################################################################
@@ -129,3 +156,38 @@ def reg_2():
     # Chapter 3.21, page 92
     print(frame.shape) # OUT: (268, 18)
     print(reg.influence()) # OUT: 29%
+
+
+def reg_3():
+    # SOURCE: Hansen, Chapters 4.19, page 126.
+    filename = caches.data_path('cps09mar.txt')
+    frame = pd.read_csv(filename)
+    frame = featurize(frame)
+    frame = filter_3(frame)
+
+    y = 'log(wage)'
+    x = [
+        'education',
+        'experience', 'experience^2/100',
+        'female',
+        'female*union',
+        'male*union',
+        'female*married',
+        'male*married',
+        'female*fromerly_married',
+        'male*formerly_married',
+        'hispanic',
+        'black',
+        'american_indian',
+        'asian',
+        'mixed_race',
+        'intercept',
+    ]
+
+    reg = base.Reg(x, y)
+    reg.fit(frame)
+
+    # Chapter 4.19, pages 126-127
+    print(frame.shape[0]) # OUT: 46,943
+    print(reg.o_hat) # OUT: 0.565
+    reg.summarize()  # OUT: table 4.2, page 127

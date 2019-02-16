@@ -48,7 +48,6 @@ class Reg(object):
         self.e_bar = None
         self.sse = None
         self.ssy = None
-        self.r2 = None
 
         # Error variance estimators
         self.o_hat = None
@@ -287,15 +286,14 @@ class Reg(object):
         return (self.h * self.e_til).max()
 
 
-    def summarize(self):
+    def summarize(self, vce='v_hc2'):
         if not self._is_fit:
             raise RuntimeError('''
             You must run `Reg.fit` before running `Reg.summarize`.''')
 
-        x = self.x
-        y = self.y
-
-        # TODO (121onto): output a summary table
+        summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
+        summary['std_err ({})'.format(vce)] = self.std_err(estimator=vce)
+        print(summary)
 
 
 ###########################################################################
