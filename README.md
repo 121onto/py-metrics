@@ -32,7 +32,6 @@ For more detailed examples, see the examples directory.
     frame['log(wage)'] = np.log(frame['wage'])
     frame['experience'] = np.maximum(frame['age'] - frame['education'] - 6, 0)
 
-
     # Setup regression
     x = ['intercept', 'female', 'experience']
     y = 'log(wage)'
