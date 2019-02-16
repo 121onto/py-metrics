@@ -129,6 +129,11 @@ class Reg(object):
         applications HC1, HC2 and HC3 will be very similar so this choice will
         not matter.  The context where the estimators can di§er substantially is
         when the sample has a large leverage value for some observation.
+
+        The heteroskedasticity-robust covariance matrix estimators can be quite
+        imprecise in some contexts. One is in the presence of sparse dummy
+        variables ñwhen a dummy variable only takes the value 1 or 0 for very
+        few observations.
         """
         if not self._is_fit:
             raise RuntimeError('''
