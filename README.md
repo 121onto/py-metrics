@@ -39,7 +39,7 @@ For more detailed examples, see the examples directory.
 
     # Fit regression
     reg.fit(frame)
-    reg.print()
+    reg.summarize()
     ```
 
 2. Estimate a covariance matrix: ...
