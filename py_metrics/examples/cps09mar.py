@@ -16,6 +16,7 @@ from py_metrics import utils
 ###########################################################################
 
 def featurize(frame):
+    # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
     frame['wage'] = frame['earnings'] / (frame['week'] * frame['hours'])
     frame['log(wage)'] = np.log(frame['wage'])
@@ -32,6 +33,7 @@ def featurize(frame):
 ###########################################################################
 
 def filter(frame):
+    # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
     # Married - civilian spouse present
     mask = (
