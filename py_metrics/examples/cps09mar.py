@@ -91,6 +91,7 @@ def filter_2(frame):
 ###########################################################################
 
 def reg_1():
+    # SOURCE: Hansen, Chapters 3.7 adn 4.15, equation 3.13, pages 75 and 121
     filename = caches.data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
@@ -100,9 +101,11 @@ def reg_1():
     x = ['education', 'intercept']
     reg = base.Reg(x, y)
     reg.fit(frame)
+    print(reg.vce(estimator='v_0')) # OUT: [[0.002, -0.031], [-0.031, 0.499]]
 
 
 def reg_2():
+    # SOURCE: Hansen, Chapters 3.7 and 3.21, equation 3.14, pages 76 and 92.
     filename = caches.data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)

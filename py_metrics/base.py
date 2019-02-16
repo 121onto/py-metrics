@@ -102,7 +102,34 @@ class Reg(object):
         return np.matmul(x, self.beta)
 
 
-    def acov(self, estimator='v_hc3'):
+    def vce(self, estimator='v_hc2'):
+        """Asymptotic covariance matrix estimation.
+
+        The four estimators HC0, HC1, HC2 and HC3 are collectively called
+        robust, heteroskedasticity- consistent, or heteroskedasticity-robust
+        covariance matrix estimators. The HC0 estimator was Örst developed
+        by Eicker (1963) and introduced to econometrics by White (1980), and
+        is sometimes called the Eicker-White or White covariance matrix
+        estimator. The degree-of-freedom adjust- ment in HC1 was recommended
+        by Hinkley (1977), and is the default robust covariance matrix estimator
+        implemented in Stata. It is implement by the ì,rî option, for example
+        by a regression executed with the command `reg y x, r`. In applied
+        econometric practice, this is the currently most popular covariance
+        matrix estimator. The HC2 estimator was introduced by Horn, Horn
+        and Duncan (1975) (and is implemented using the vce(hc2) option
+        in Stata). The HC3 estimator was derived by MacKinnon and White (1985)
+        from the jackknife principle (see Section 10.3), and by Andrews (1991a)
+        based on the principle of leave-one-out cross-validation (and is
+        implemented using the vce(hc3) option in Stata).
+
+        Which one to use?  `v_0` is typically a poor choice.  HC1 is the most
+        commonly used as it is the default robust covariance matrix option in
+        Stata. However, HC2 and HC3 are preferred. HC2 is unbiased (under
+        homoskedasticity) and HC3 is conservative for any x. In most
+        applications HC1, HC2 and HC3 will be very similar so this choice will
+        not matter.  The context where the estimators can di§er substantially is
+        when the sample has a large leverage value for some observation.
+        """
         if not self._is_fit:
             raise RuntimeError('''
             You must run `Reg.fit` before running `Reg.predict`.''')
@@ -131,9 +158,12 @@ class Reg(object):
         return acov
 
 
-    def nvar(self, estimator='norm_v0'):
-        acov = self.acov(estimator=estimator)
-        return np.diag(acov)
+    def ve(self, estimator='v_hc2'):
+        return np.diag(self.vce(estimator=estimator))
+
+
+    def std_err(self, estimator='v_hc2'):
+        return np.sqrt(self.ve(estimator=estimator))
 
 
     def msfe(self):
