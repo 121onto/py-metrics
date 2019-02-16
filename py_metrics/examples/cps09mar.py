@@ -106,6 +106,13 @@ def reg_1():
     print(reg.vce(estimator='v_0')) # OUT: [[0.002, -0.031], [-0.031, 0.499]]
     print(reg.vce(estimator='v_hc2')) # OUT: [[ 0.0009314  -0.01479734], [-0.01479722  0.24282344]]
 
+    # SOURCE: chapter 4.15, page 122
+    print(reg.std_err(estimator='v_0')) # OUT: [0.045, 0.707]
+    print(reg.std_err(estimator='v_hc0')) # OUT: [0.029, 0.461]
+    print(reg.std_err(estimator='v_hc1')) # OUT: [0.030, 0.486]
+    print(reg.std_err(estimator='v_hc2')) # OUT: [0.031, 0.493]
+    print(reg.std_err(estimator='v_hc3')) # OUT: [0.033, 0.527]
+
 
 def reg_2():
     # SOURCE: Hansen, Chapters 3.7, equation 3.14, pages 76.
