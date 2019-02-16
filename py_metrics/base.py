@@ -68,8 +68,10 @@ class Reg(object):
 
         # Summary stats
         self.ssy = ((y - y.mean()) ** 2).sum()
-        self.omega_hat = self.sse / frame.shape[0]
-        self.omega_til = ((self.e_til) ** 2).sum() / frame.shape[0]
+        self.omega_hat = np.sqrt(
+            self.sse / frame.shape[0])
+        self.omega_til = np.sqrt(
+            ((self.e_til) ** 2).sum() / frame.shape[0])
         self.r2 = (1 - self.sse / self.ssy)
 
 
