@@ -8,10 +8,27 @@ Most of the decisions regarding output and functionality come from Bruce Hansen'
 Econometrics textbook ([link](https://www.ssc.wisc.edu/~bhansen/econometrics/)).
 I primarily used his January 2019 version during the development of this package.
 
-Getting Started
----------------
+Installation
+------------
 
-For more detailed examples, see the examples directory.
+Note: this repo is compatible with python 3.6 only.
+
+1. Install from source
+
+    ```bash
+    pip install git+git://github.com/121onto/py-metrics.git
+    ```
+
+TODO (121onto): release `v0.0.1` and update these instructions to install from
+  that release.
+
+
+Documentation
+-------------
+
+Additional examples with more detail are available in the examples directory.
+
+### Regression
 
 0. Setup workspace:
 
