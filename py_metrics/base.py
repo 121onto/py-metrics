@@ -99,6 +99,10 @@ class Reg(object):
         return self.h
 
 
+    def influence(self):
+        return (self.h * self.e_til).max()
+
+
     def summarize(self):
         if not self._is_fit:
             raise RuntimeError('''
