@@ -18,13 +18,15 @@ from py_metrics import utils
 def featurize(frame):
     # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
+    frame['intercept'] = 1.0
+
     frame['wage'] = frame['earnings'] / (frame['week'] * frame['hours'])
     frame['log(wage)'] = np.log(frame['wage'])
-    frame['experience'] = np.maximum(frame['age'] - frame['education'] - 6, 0)
 
-    frame['education^2'] = frame['education'] ** 2
+    frame['experience'] = np.maximum(frame['age'] - frame['education'] - 6, 0)
+    frame['experience^2'] = frame['experience'] ** 2
     frame['education*log(wage)'] = frame['education'] * frame['log(wage)']
-    frame['intercept'] = 1.0
+
     return frame
 
 
@@ -32,7 +34,7 @@ def featurize(frame):
 # Filter
 ###########################################################################
 
-def filter(frame):
+def filter_1(frame):
     # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
     # Married - civilian spouse present
@@ -66,17 +68,49 @@ def filter(frame):
     return frame
 
 
+def filter_2(frame):
+    # Chapter 3.7 of Hansen's text (January 2019 edition)
+    frame = frame.copy(deep=True)
+    # Single
+    mask = (frame['marital'] == 7)
+    frame = frame[mask]
+
+    # Race - Asian
+    mask = (frame['race'] == 4)
+    frame = frame[mask]
+
+    # Male
+    mask = (frame['female'] == 0)
+    frame = frame[mask]
+
+    return frame
+
+
 ###########################################################################
 # Regression
 ###########################################################################
 
-def reg():
+def reg_1():
     filename = caches.data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
-    frame = filter(frame)
+    frame = filter_1(frame)
 
     y = 'log(wage)'
     x = ['education', 'intercept']
     reg = base.Reg(x, y)
     reg.fit(frame)
+
+
+def reg_2():
+    filename = caches.data_path('cps09mar.txt')
+    frame = pd.read_csv(filename)
+    frame = featurize(frame)
+    frame = filter_2(frame)
+
+    y = 'log(wage)'
+    x = ['intercept', 'education', 'experience', 'experience^2']
+    reg = base.Reg(x, y)
+    reg.fit(frame)
+    print(frame.shape) # OUT: (268, 18)
+    print(reg.influence()) # OUT: 29%
