@@ -91,7 +91,7 @@ def filter_2(frame):
 ###########################################################################
 
 def reg_1():
-    # SOURCE: Hansen, Chapters 3.7 adn 4.15, equation 3.13, pages 75 and 121
+    # SOURCE: Hansen, Chapters 3.7, equation 3.13, page 75
     filename = caches.data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
@@ -101,11 +101,14 @@ def reg_1():
     x = ['education', 'intercept']
     reg = base.Reg(x, y)
     reg.fit(frame)
+
+    # SOURCE: chapter 4.15, page 121
     print(reg.vce(estimator='v_0')) # OUT: [[0.002, -0.031], [-0.031, 0.499]]
+    print(reg.vce(estimator='v_hc2')) # OUT: [[ 0.0009314  -0.01479734], [-0.01479722  0.24282344]]
 
 
 def reg_2():
-    # SOURCE: Hansen, Chapters 3.7 and 3.21, equation 3.14, pages 76 and 92.
+    # SOURCE: Hansen, Chapters 3.7, equation 3.14, pages 76.
     filename = caches.data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
@@ -115,5 +118,7 @@ def reg_2():
     x = ['intercept', 'education', 'experience', 'experience^2']
     reg = base.Reg(x, y)
     reg.fit(frame)
+
+    # Chapter 3.21, page 92
     print(frame.shape) # OUT: (268, 18)
     print(reg.influence()) # OUT: 29%
