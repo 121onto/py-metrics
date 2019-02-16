@@ -39,9 +39,12 @@ class Reg(object):
         self._is_fit = False
 
         # Diagnostics
+        self.e_hat = None
+        self.e_til = None
         self.sse = None
         self.ssy = None
         self.omega_hat = None
+        self.omega_til = None
         self.r2 = None
 
 
@@ -59,9 +62,14 @@ class Reg(object):
         self.beta, self.sse, _, _ = lstsq(x, y)
         self._is_fit = True
 
-        # Compute summary stats
+        # Errors
+        self.e_hat = y - np.matmul(x, self.beta)
+        self.e_til = ((1 - self.leverage()) ** -1 ) * self.e_hat
+
+        # Summary stats
         self.ssy = ((y - y.mean()) ** 2).sum()
         self.omega_hat = self.sse / frame.shape[0]
+        self.omega_til = ((self.e_til) ** 2).sum() / frame.shape[0]
         self.r2 = (1 - self.sse / self.ssy)
 
 
@@ -97,8 +105,6 @@ class Reg(object):
         x = self.x
         y = self.y
 
-        e_hat = y - np.matmul(x, self.beta)
-        e_tilde = ((1 - self.leverage()) ** -1 ) * e_hat
         # TODO (121onto): output a summary table
 
 
