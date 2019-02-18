@@ -56,22 +56,14 @@ class Reg(object):
         self.s_hat = None
 
 
-    def fit(self, frame):
-        # Prepare the data
-        self.x = x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
-        self.y = y = frame[self.y_col].copy(deep=True).astype(np.float32).values
-        self.n = frame.shape[0]
+    def residuals(self):
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `Reg.fit` before running `Reg.residuals`.''')
+
+        # Compute residuals
+        x, y = self.x, self.y
         n, k = self.n, self.k
-
-        # other operations
-        self.qxx = np.matmul(np.transpose(x), x)
-        self.qxy = np.matmul(np.transpose(x), y)
-        self.qxx_inv = inv(self.qxx)
-
-        # Fit the regression
-        self.beta, self.sse, _, _ = lstsq(x, y)
-        self.ssy = ((y - y.mean()) ** 2).sum()
-        self._is_fit = True
 
         # Errors
         self.e_hat = e_hat = y - np.matmul(x, self.beta)
@@ -89,6 +81,26 @@ class Reg(object):
             ((self.e_til) ** 2).sum() / n)
         self.o_bar = np.sqrt(
             ((self.e_bar) ** 2).sum() / n)
+
+
+    def fit(self, frame):
+        # Prepare the data
+        self.x = x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
+        self.y = y = frame[self.y_col].copy(deep=True).astype(np.float32).values
+        self.n = frame.shape[0]
+        n, k = self.n, self.k
+
+        # other operations
+        self.qxx = np.matmul(np.transpose(x), x)
+        self.qxy = np.matmul(np.transpose(x), y)
+        self.qxx_inv = inv(self.qxx)
+
+        # Fit the regression
+        self.beta, self.sse, _, _ = lstsq(x, y)
+        self.ssy = ((y - y.mean()) ** 2).sum()
+        self._is_fit = True
+
+        self.residuals()
 
 
     def predict(self, frame):
@@ -147,13 +159,13 @@ class Reg(object):
         return r2
 
 
-    def vce(self, estimator='v_hc2'):
+    def vce(self, estimator='hc2'):
         """Asymptotic covariance matrix estimation.
 
         Parameters
         ----------
         estimator: string
-            One of 'v_0', 'v_hc0', 'v_hc1', 'v_hc2', 'v_hc3'.
+            One of '0', 'hc0', 'hc1', 'hc2', 'hc3'.
 
         Returns
         -------
@@ -193,37 +205,37 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.predict`.''')
+            You must run `Reg.fit` before running `Reg.vce`.''')
 
-        if estimator == 'v_0':
+        if estimator == '0':
             return self.qxx_inv * (self.s_hat ** 2)
-        elif estimator == 'v_hc0':
+        elif estimator == 'hc0':
             e_hat, x = self.e_hat, self.x
             norm = 1
-        elif estimator == 'v_hc1':
+        elif estimator == 'hc1':
             e_hat, x = self.e_hat, self.x
             norm = self.n / (self.n - self.k)
-        elif estimator == 'v_hc2':
+        elif estimator == 'hc2':
             e_hat, x = self.e_bar, self.x
             norm = 1
-        elif estimator == 'v_hc3':
+        elif estimator == 'hc3':
             e_hat, x = self.e_til, self.x
             norm = 1
 
-        one = three = self.qxx_inv
-        two = np.matmul(
+        qxx_inv = self.qxx_inv
+        omega = np.matmul(
             np.multiply(np.transpose(x), e_hat),
             np.multiply(e_hat[:, np.newaxis], x)
         )
-        acov = norm * np.matmul(np.matmul(one, two), three)
+        acov = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
         return acov
 
 
-    def ve(self, estimator='v_hc2'):
+    def ve(self, estimator='hc2'):
         return np.diag(self.vce(estimator=estimator))
 
 
-    def std_err(self, estimator='v_hc2'):
+    def std_err(self, estimator='hc2'):
         return np.sqrt(self.ve(estimator=estimator))
 
 
@@ -240,7 +252,7 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.predict`.''')
+            You must run `Reg.fit` before running `Reg.msfe`.''')
         return self.o_til
 
 
@@ -283,13 +295,143 @@ class Reg(object):
             - Hansen, Chapter 3.21
 
         """
+        self.leverage()
         return (self.h * self.e_til).max()
 
 
-    def summarize(self, vce='v_hc2'):
+    def summarize(self, vce='hc2'):
         if not self._is_fit:
             raise RuntimeError('''
             You must run `Reg.fit` before running `Reg.summarize`.''')
+
+        summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
+        summary['se({})'.format(vce)] = self.std_err(estimator=vce)
+        print('='*80)
+        print('y: {}'.format(self.y_col), '\n')
+        print(summary, '\n')
+        print('n: {}'.format(self.n))
+        print('k: {}'.format(self.k))
+        print('s_hat: {}'.format(self.s_hat))
+        print('R2: {}'.format(self.r2()))
+
+
+###########################################################################
+# Cluster
+###########################################################################
+
+class Cluster(Reg):
+    def __init__(self, x_cols, y_col, grp_col):
+        self.grp_col = grp_col
+        self.grp = None
+        self.grp_idx = None
+
+        super().__init__(x_cols, y_col)
+
+
+    def residuals(self):
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `Cluster.fit` before running `Cluster.residuals`.''')
+
+        # Compute residuals
+        x, y = self.x, self.y
+        n, k = self.n, self.k
+
+        # Errors
+        self.e_hat = e_hat = y - np.matmul(x, self.beta)
+        self.e_til = np.zeros(e_hat.shape, dtype=np.float32)
+        for grp, idx in self.grp_idx.items():
+            A = (
+                np.eye(len(idx)) -
+                np.matmul(
+                    np.matmul(x[idx], self.qxx_inv),
+                    np.transpose(x[idx])))
+            self.e_til[idx], _, _, _ = lstsq(A, e_hat[idx])
+        self.e_bar = None # NOTE: not implemented
+
+        # Summary stats
+        # TODO (121onto): run experiments to determine whether I should pull `leverage`
+        #   out from under the `** 2` operator.
+        self.o_hat = np.sqrt(
+            self.sse / n)
+        self.s_hat = np.sqrt(
+            ((self.e_hat) ** 2).sum() / (n - k))
+        self.o_til = np.sqrt(
+            ((self.e_til) ** 2).sum() / n)
+        self.o_bar = None # NOTE: not implemented
+
+
+    def fit(self, frame):
+        self.grp = frame[self.grp_col].copy(deep=True).astype(np.float32).values
+        self.grp_idx = frame.groupby([self.grp_col]).indices
+        return super().fit(frame)
+
+
+    def vce(self, estimator='cr3'):
+        """Asymptotic covariance matrix estimation.
+
+        Parameters
+        ----------
+        estimator: string
+            One of 'cr0', 'cr1', 'cr3'
+
+        Returns
+        -------
+        float
+
+        Discussion
+        ----------
+        The label CR refers to ̀cluster-robust and CR3 refers to the analogous
+        formula for the HC3 esitmator.
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `Cluster.fit` before running `Cluster.vce`.''')
+
+        x, y, e_hat = self.x, self.y, self.e_hat
+        n, k, G = self.n, self.k, len(self.grp_idx)
+
+        if estimator == 'cr0':
+            e_hat, x = self.e_hat, self.x
+            norm = 1
+        elif estimator == 'cr1':
+            e_hat, x = self.e_hat, self.x
+            norm = (n / (n - k)) * (G / (G - 1))
+        elif estimator == 'cr3':
+            e_hat, x = self.e_til, self.x
+            norm = 1
+
+        qxx_inv = self.qxx_inv
+        omega = np.zeros([k, k], dtype=np.float32)
+        for label, idx in self.grp_idx.items():
+            vec = np.dot(e_hat[idx], x[idx,:])
+            omega = omega + np.outer(vec, vec)
+        acov = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
+        return acov
+
+
+    def ve(self, estimator='cr3'):
+        # see `Cluster.vce` for options
+        return np.diag(self.vce(estimator=estimator))
+
+
+    def std_err(self, estimator='cr3'):
+        # see `Cluster.vce` for options
+        return np.sqrt(self.ve(estimator=estimator))
+
+
+    def leverage():
+        raise NotImplementedError
+
+
+    def influence():
+        raise NotImplementedError
+
+
+    def summarize(self, vce='cr3'):
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `Cluster.fit` before running `Cluster.summarize`.''')
 
         summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
         summary['se({})'.format(vce)] = self.std_err(estimator=vce)

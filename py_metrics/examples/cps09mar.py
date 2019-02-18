@@ -128,15 +128,15 @@ def reg_1():
     reg.fit(frame)
 
     # SOURCE: chapter 4.15, page 121
-    print(reg.vce(estimator='v_0')) # OUT: [[0.002, -0.031], [-0.031, 0.499]]
-    print(reg.vce(estimator='v_hc2')) # OUT: [[ 0.0009314  -0.01479734], [-0.01479722  0.24282344]]
+    print(reg.vce(estimator='0')) # OUT: [[0.002, -0.031], [-0.031, 0.499]]
+    print(reg.vce(estimator='hc2')) # OUT: [[ 0.0009314  -0.01479734], [-0.01479722  0.24282344]]
 
     # SOURCE: chapter 4.15, page 122
-    print(reg.std_err(estimator='v_0')) # OUT: [0.045, 0.707]
-    print(reg.std_err(estimator='v_hc0')) # OUT: [0.029, 0.461]
-    print(reg.std_err(estimator='v_hc1')) # OUT: [0.030, 0.486]
-    print(reg.std_err(estimator='v_hc2')) # OUT: [0.031, 0.493]
-    print(reg.std_err(estimator='v_hc3')) # OUT: [0.033, 0.527]
+    print(reg.std_err(estimator='0')) # OUT: [0.045, 0.707]
+    print(reg.std_err(estimator='hc0')) # OUT: [0.029, 0.461]
+    print(reg.std_err(estimator='hc1')) # OUT: [0.030, 0.486]
+    print(reg.std_err(estimator='hc2')) # OUT: [0.031, 0.493]
+    print(reg.std_err(estimator='hc3')) # OUT: [0.033, 0.527]
 
 
 def reg_2():
@@ -187,3 +187,13 @@ def reg_3():
 
     # Chapter 4.19, pages 126-127
     reg.summarize()  # OUT: table 4.2, page 127
+
+
+###########################################################################
+# Main
+###########################################################################
+
+if __name__ == '__main__':
+    reg_1()
+    reg_2()
+    reg_3()
