@@ -320,6 +320,8 @@ class Reg(object):
 ###########################################################################
 
 class Cluster(Reg):
+    # Regression with cluster-robust inference.
+
     def __init__(self, x_cols, y_col, grp_col):
         self.grp_col = grp_col
         self.grp = None
@@ -362,6 +364,26 @@ class Cluster(Reg):
 
 
     def fit(self, frame):
+        """Regression with cluster-robust inference.
+
+        Discussion
+        ----------
+        There is a trade-off between bias and variance in the estimation of the
+        covariance matrix by cluster-robust methods.
+
+        First, suppose cluster dependence is ignored or imposed at too Öne a level
+        (e.g. clustering by households instead of villages). Then variance
+        estimators will be biased as they will omit covariance terms. As correlation
+        is typically positive, this suggests that standard errors will be too small,
+        giving rise to spurious indications of signiÖcance and precision.
+
+        Second, suppose cluster dependence is imposed at too aggregate a measure
+        (e.g. clustering by states rather than villages). This does not cause bias.
+        But the variance estimators will contain many extra components, so the
+        precision of the covariance matrix estimator will be poor. This means that
+        reported standard errors will be imprecise ñmore random ñthan if
+        clustering had been less aggregate.
+        """
         self.grp = frame[self.grp_col].copy(deep=True).astype(np.float32).values
         self.grp_idx = frame.groupby([self.grp_col]).indices
         return super().fit(frame)
@@ -381,8 +403,29 @@ class Cluster(Reg):
 
         Discussion
         ----------
-        The label CR refers to ̀cluster-robust and CR3 refers to the analogous
-        formula for the HC3 esitmator.
+        The label CR refers to custer-robust and CR3 refers to the analogous
+        formula for the HC3 esitmator.  Stata implements CR1 while CR3 is
+        conservative.
+
+        In many respects cluster-robust inference should be viewed similarly to
+        heteroskedaticity-robust inference, where a cluster in the cluster-
+        robust case is interpreted similarly to an observation in the
+        heteroskedasticity-robust case. In particular, the effective sample size
+        should be viewed as the number of clusters, not the sample size n.
+
+        Most cluster-robust theory assumes that the clusters are
+        homogeneous.  When this is violated ñwhen, for example, cluster sizes
+        are highly heterogeneous ñthe regression should be viewed as roughly
+        equivalent to the heteroskedasticity-robust case with an extremely high
+        degree of heteroskedasticity.
+
+        Put together, if the number of clusters G is small and the number of
+        observations per cluster is highly varied, then we should interpret
+        inferential statements with a great degree of caution.  Standard error
+        estimates can be erroneously small. In the extreme of a single treated
+        cluster (in the example, if only a single school was tracked) then the
+        estimated coefficient on tracking will be very imprecisely estimated,
+        yet will have a misleadingly small cluster standard error.
         """
         if not self._is_fit:
             raise RuntimeError('''
