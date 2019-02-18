@@ -61,7 +61,7 @@ class Reg(object):
     def residuals(self):
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.residuals`.''')
+            You must run `Reg.fit` before calling `Reg.residuals`.''')
 
         # Compute residuals
         x, y = self.x, self.y
@@ -108,7 +108,7 @@ class Reg(object):
     def predict(self, frame):
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.predict`.''')
+            You must run `fit` before calling `predict`.''')
 
         x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
         return np.matmul(x, self.beta)
@@ -146,7 +146,7 @@ class Reg(object):
         if estimator not in ('r2', 'r-bar2', 'r-til2'):
             raise ValueError('''
             `estimator` must be one of 'r2', 'r-bar2', or 'r-til2'
-            in call to `Reg.r2`.''')
+            in call to `r2`.''')
 
         o_yhat = self.ssy / self.n
         if estimator == 'r2':
@@ -207,12 +207,12 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.vce`.''')
+            You must run `fit` before calling `vce`.''')
 
         if estimator not in ('0', 'hc0', 'hc1', 'hc2', 'hc3'):
             raise ValueError('''
-            Argument `estimator` must be one of `0`, `hc0`, `hc1`, `hc2`, or `hc3`
-            in call to Reg.vce.''')
+            Argument `estimator` must be one of '0', 'hc0', 'hc1', 'hc2', or 'hc3'
+            in call to `vce`.''')
 
         if estimator == '0':
             return self.qxx_inv * (self.s_hat ** 2)
@@ -264,18 +264,55 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.confidence_interval`.''')
+            You must run `fit` before calling `confidence_interval`.''')
 
         if dist == 'normal':
             ppf = normal.ppf
         elif dist == 'student-t':
             ppf = lambda x: student_t.ppf(x, df=(self.n - self.k))
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `confidence_interval`.''')
 
         c = ppf(1 - (alpha / 2))
         std_err = self.std_err(estimator=vce)
         lb = self.beta - c * std_err
         ub = self.beta + c * std_err
         return lb, ub
+
+
+    def p_value(self, alpha=0.05, dist='normal', vce='hc2'):
+        """Compute a confidence interval with coverage 1 - alpha.
+
+        Parameters
+        ----------
+        alpha: float
+            1 - alpha equals the coverage probability.
+        dist: string
+            One of 'normal' or 'student-t'
+        estimator: string
+            One of '0', 'hc0', 'hc1', 'hc2', 'hc3'.
+
+        Returns
+        -------
+        two np.arrays of type np.float32
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `fit` before calling `p_value`.''')
+
+        if dist == 'normal':
+            cdf = normal.cdf
+        elif dist == 'student-t':
+            cdf = lambda x: student_t.cdf(x, df=(self.n - self.k))
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `p_value`.''')
+
+        t = self.beta / self.std_err(estimator=vce)
+        return 2 * (1 - cdf(np.absolute(t)))
 
 
     def msfe(self):
@@ -291,7 +328,7 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.msfe`.''')
+            You must run `fit` before calling `msfe`.''')
         return self.o_til
 
 
@@ -308,7 +345,7 @@ class Reg(object):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.leverage`.''')
+            You must run `fit` before calling `leverage`.''')
 
         if self.h is not None:
             return self.h
@@ -341,13 +378,11 @@ class Reg(object):
     def summarize(self, alpha=0.05, dist='normal', vce='hc2'):
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Reg.fit` before running `Reg.summarize`.''')
+            You must run `fit` before calling `summarize`.''')
 
-        ci_lb, ci_ub = self.confidence_interval(alpha=alpha, dist=dist, vce=vce)
         summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
         summary['se({})'.format(vce)] = self.std_err(estimator=vce)
-        summary['ci_lb({})'.format(alpha)] = ci_lb
-        summary['ci_ub({})'.format(alpha)] = ci_ub
+        summary['p-value'] = self.p_value(dist=dist, vce=vce)
 
         print('='*80)
         print('y: {}'.format(self.y_col), '\n')
@@ -376,7 +411,7 @@ class Cluster(Reg):
     def residuals(self):
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Cluster.fit` before running `Cluster.residuals`.''')
+            You must run `fit` before running `residuals`.''')
 
         # Compute residuals
         x, y = self.x, self.y
@@ -470,12 +505,12 @@ class Cluster(Reg):
         """
         if not self._is_fit:
             raise RuntimeError('''
-            You must run `Cluster.fit` before running `Cluster.vce`.''')
+            You must run `fit` before calling `vce`.''')
 
         if estimator not in ('cr0', 'cr1', 'cr3'):
             raise ValueError('''
-            Argument `estimator` must be one of `cr0`, `cr1`, or `cr3`
-            in call to Cluster.vce.''')
+            Argument `estimator` must be one of 'cr0', 'cr1', or 'cr3'
+            in call to `vce`.''')
 
         x, y, e_hat = self.x, self.y, self.e_hat
         n, k, G = self.n, self.k, len(self.grp_idx)
@@ -509,8 +544,40 @@ class Cluster(Reg):
         return super().std_err(estimator=estimator)
 
 
-    def confidence_interval(self, alpha=0.05, dist='normal', vce='cr2'):
+    def confidence_interval(self, alpha=0.05, dist='normal', vce='cr3'):
+        """Compute a confidence interval with coverage 1 - alpha.
+
+        Parameters
+        ----------
+        alpha: float
+            1 - alpha equals the coverage probability.
+        dist: string
+            One of 'normal' or 'student-t' (default is 'normal').
+        estimator: string
+            One of 'cr0', 'cr1', or 'cr3' (default is 'cr3').
+
+        Returns
+        -------
+        two np.arrays of type np.float32
+        """
         return super().confidence_interval(alpha=alpha, dist=dist, vce=vce)
+
+
+    def p_value(self, dist='normal', vce='cr3'):
+        """Compute p-values
+
+        Parameters
+        ----------
+        dist: string
+            One of 'normal' or 'student-t' (default is 'normal').
+        estimator: string
+            One of 'cr0', 'cr1', or 'cr3' (default is 'cr3').
+
+        Returns
+        -------
+        An np.arrays of type np.float32
+        """
+        return super().p_value(dist=dist, vce=vce)
 
 
     def leverage():
