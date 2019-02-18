@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 
 from scipy.linalg import lstsq
+from scipy.stats import norm as normal
+from scipy.stats import t as student_t
 from numpy.linalg import inv
 from numpy.linalg import cholesky
 
@@ -207,6 +209,11 @@ class Reg(object):
             raise RuntimeError('''
             You must run `Reg.fit` before running `Reg.vce`.''')
 
+        if estimator not in ('0', 'hc0', 'hc1', 'hc2', 'hc3'):
+            raise ValueError('''
+            Argument `estimator` must be one of `0`, `hc0`, `hc1`, `hc2`, or `hc3`
+            in call to Reg.vce.''')
+
         if estimator == '0':
             return self.qxx_inv * (self.s_hat ** 2)
         elif estimator == 'hc0':
@@ -237,6 +244,38 @@ class Reg(object):
 
     def std_err(self, estimator='hc2'):
         return np.sqrt(self.ve(estimator=estimator))
+
+
+    def confidence_interval(self, alpha=0.05, dist='normal', vce='hc2'):
+        """Compute a confidence interval with coverage 1 - alpha.
+
+        Parameters
+        ----------
+        alpha: float
+            1 - alpha equals the coverage probability.
+        dist: string
+            One of 'normal' or 'student-t'
+        estimator: string
+            One of '0', 'hc0', 'hc1', 'hc2', 'hc3'.
+
+        Returns
+        -------
+        two np.arrays of type np.float32
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `Reg.fit` before running `Reg.confidence_interval`.''')
+
+        if dist == 'normal':
+            ppf = normal.ppf
+        elif dist == 'student-t':
+            ppf = lambda x: student_t.ppf(x, df=(self.n - self.k))
+
+        c = ppf(1 - (alpha / 2))
+        std_err = self.std_err(estimator=vce)
+        lb = self.beta - c * std_err
+        ub = self.beta + c * std_err
+        return lb, ub
 
 
     def msfe(self):
@@ -299,13 +338,17 @@ class Reg(object):
         return (self.h * self.e_til).max()
 
 
-    def summarize(self, vce='hc2'):
+    def summarize(self, alpha=0.05, dist='normal', vce='hc2'):
         if not self._is_fit:
             raise RuntimeError('''
             You must run `Reg.fit` before running `Reg.summarize`.''')
 
+        ci_lb, ci_ub = self.confidence_interval(alpha=alpha, dist=dist, vce=vce)
         summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
         summary['se({})'.format(vce)] = self.std_err(estimator=vce)
+        summary['ci_lb({})'.format(alpha)] = ci_lb
+        summary['ci_ub({})'.format(alpha)] = ci_ub
+
         print('='*80)
         print('y: {}'.format(self.y_col), '\n')
         print(summary, '\n')
@@ -352,8 +395,6 @@ class Cluster(Reg):
         self.e_bar = None # NOTE: not implemented
 
         # Summary stats
-        # TODO (121onto): run experiments to determine whether I should pull `leverage`
-        #   out from under the `** 2` operator.
         self.o_hat = np.sqrt(
             self.sse / n)
         self.s_hat = np.sqrt(
@@ -395,7 +436,7 @@ class Cluster(Reg):
         Parameters
         ----------
         estimator: string
-            One of 'cr0', 'cr1', 'cr3'
+            One of 'cr0', 'cr1', 'cr3' (default is 'cr3').
 
         Returns
         -------
@@ -431,6 +472,11 @@ class Cluster(Reg):
             raise RuntimeError('''
             You must run `Cluster.fit` before running `Cluster.vce`.''')
 
+        if estimator not in ('cr0', 'cr1', 'cr3'):
+            raise ValueError('''
+            Argument `estimator` must be one of `cr0`, `cr1`, or `cr3`
+            in call to Cluster.vce.''')
+
         x, y, e_hat = self.x, self.y, self.e_hat
         n, k, G = self.n, self.k, len(self.grp_idx)
 
@@ -455,12 +501,16 @@ class Cluster(Reg):
 
     def ve(self, estimator='cr3'):
         # see `Cluster.vce` for options
-        return np.diag(self.vce(estimator=estimator))
+        return super().ve(estimator=estimator)
 
 
     def std_err(self, estimator='cr3'):
         # see `Cluster.vce` for options
-        return np.sqrt(self.ve(estimator=estimator))
+        return super().std_err(estimator=estimator)
+
+
+    def confidence_interval(self, alpha=0.05, dist='normal', vce='cr2'):
+        return super().confidence_interval(alpha=alpha, dist=dist, vce=vce)
 
 
     def leverage():
@@ -471,17 +521,5 @@ class Cluster(Reg):
         raise NotImplementedError
 
 
-    def summarize(self, vce='cr3'):
-        if not self._is_fit:
-            raise RuntimeError('''
-            You must run `Cluster.fit` before running `Cluster.summarize`.''')
-
-        summary = pd.DataFrame(self.beta, index=self.x_cols, columns=['beta'])
-        summary['se({})'.format(vce)] = self.std_err(estimator=vce)
-        print('='*80)
-        print('y: {}'.format(self.y_col), '\n')
-        print(summary, '\n')
-        print('n: {}'.format(self.n))
-        print('k: {}'.format(self.k))
-        print('s_hat: {}'.format(self.s_hat))
-        print('R2: {}'.format(self.r2()))
+    def summarize(self, alpha=0.05, dist='normal', vce='cr3'):
+        super().summarize(alpha=alpha, dist=dist, vce=vce)

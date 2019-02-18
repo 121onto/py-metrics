@@ -66,7 +66,7 @@ def reg_2():
 
     reg = base.Cluster(x, y, grp)
     reg.fit(frame)
-    reg.summarize()
+    reg.summarize(vce='cr3') # OUT: see Hansen's equation 4.52, page 134
 
 
 ###########################################################################
