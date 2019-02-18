@@ -30,7 +30,7 @@ Additional examples with more detail are available in the examples directory.
 
 ### Regression
 
-0. Setup workspace:
+1. Setup your workspace:
 
     ```python3
     from __future__ import print_function
@@ -49,7 +49,7 @@ Additional examples with more detail are available in the examples directory.
     ```
 
 
-1. Run a regression:
+2. Fit the regression:
 
     ``` python3
     # Initialize
@@ -62,7 +62,7 @@ Additional examples with more detail are available in the examples directory.
     reg.summarize()
     ```
 
-2. Estimate a covariance matrix:
+3. Estimate a covariance matrix:
 
     ```python3
     vce = pd.DataFrame(
@@ -75,7 +75,7 @@ Additional examples with more detail are available in the examples directory.
 
 ### Clustered Regression
 
-0. Setup workspace:
+1. Setup your workspace:
 
     ```python3
     from __future__ import print_function
@@ -95,7 +95,7 @@ Additional examples with more detail are available in the examples directory.
     ```
 
 
-1. Run a regression:
+2. Fit the regression:
 
     ``` python3
     # Initialize
@@ -108,7 +108,7 @@ Additional examples with more detail are available in the examples directory.
     reg.summarize()
     ```
 
-2. Estimate a covariance matrix:
+3. Estimate a cluster-robust covariance matrix:
 
     ```python3
     vce = pd.DataFrame(
