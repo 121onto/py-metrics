@@ -73,7 +73,7 @@ Additional examples with more detail are available in the examples directory.
     ```
 
 
-### Cluster-Robust
+### Clustered Regression
 
 0. Setup workspace:
 
