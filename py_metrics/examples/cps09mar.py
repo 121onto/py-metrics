@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from py_metrics import caches, base
+from py_metrics import nlcom
 
 ###########################################################################
 # Featurize
@@ -51,11 +52,11 @@ def featurize(frame):
 def filter_1(frame):
     # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
+
     # Married - civilian spouse present
     mask = (
         (frame['marital'] == 1) |
         (frame['marital'] == 2))
-    # mask = (frame['marital'] == 1)
     frame = frame[mask]
 
     # Race - black
@@ -85,6 +86,7 @@ def filter_1(frame):
 def filter_2(frame):
     # Chapter 3.7 of Hansen's text (January 2019 edition)
     frame = frame.copy(deep=True)
+
     # Single
     mask = (frame['marital'] == 7)
     frame = frame[mask]
@@ -106,6 +108,32 @@ def filter_3(frame):
 
     # Education
     mask = (frame['education'] >= 12)
+    frame = frame[mask]
+
+    return frame
+
+
+def filter_4(frame):
+    # see Chapter 7.11, equation 7.31, page 336
+    frame = frame.copy(deep=True)
+
+    # Married - civilian spouse present
+    mask = (
+        (frame['marital'] == 1) |
+        (frame['marital'] == 2))
+    frame = frame[mask]
+
+    # Black
+    mask = (
+        (frame['race'] == 2) |
+        (frame['race'] == 10) |
+        (frame['race'] == 11) |
+        (frame['race'] == 12))
+    mask = (frame['race'] == 2)
+    frame = frame[mask]
+
+    # Women
+    mask = (frame['female'] == 1)
     frame = frame[mask]
 
     return frame
@@ -189,6 +217,36 @@ def reg_3():
     reg.summarize()  # OUT: table 4.2, page 127
 
 
+def reg_4():
+    # see Chapter 7.11
+    filename = caches.data_path('cps09mar.txt')
+    frame = pd.read_csv(filename)
+    frame = featurize(frame)
+    frame = filter_4(frame)
+
+    y = 'log(wage)'
+    x = ['education', 'experience', 'experience^2/100', 'intercept']
+    reg = base.Reg(x, y)
+    reg.fit(frame)
+
+    reg.summarize() # OUT: equation 7.31, page 236
+
+    print('\nvce(hc2): ')
+    vce = pd.DataFrame(
+        reg.vce('hc2'),
+        index=reg.x_cols,
+        columns=reg.x_cols)
+    print(vce) # OUT: equation 7.32, page 236
+
+    gradient = lambda beta: [100, 0, 0, 0]
+    print('\ns(theta_1):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~0.8
+    gradient = lambda beta: [0, 100, 20, 0]
+    print('s(theta_2):', nlcom.std_err(reg, gradient=gradient))
+    # NOTE: the preceding result does not agree with Hansen's answer
+    gradient = lambda beta: [0, (-50 / beta[2]), (50 * beta[1] / (beta[2] ** 2)), 0]
+    print('s(theta_3):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~7.0
+
+
 ###########################################################################
 # Main
 ###########################################################################
@@ -197,3 +255,4 @@ if __name__ == '__main__':
     reg_1()
     reg_2()
     reg_3()
+    reg_4()

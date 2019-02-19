@@ -12,8 +12,6 @@ from scipy.stats import t as student_t
 from numpy.linalg import inv
 from numpy.linalg import cholesky
 
-from py_metrics import caches
-
 ###########################################################################
 # OLS
 ###########################################################################
@@ -232,14 +230,37 @@ class Reg(object):
             np.multiply(np.transpose(x), e_hat),
             np.multiply(e_hat[:, np.newaxis], x)
         )
-        return (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        vce = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        return vce
 
 
     def ve(self, estimator='hc2'):
+        """Compute the variance associated with beta.
+
+        Parameters
+        ----------
+        estimator: string
+            One of '0', 'hc0', 'hc1', 'hc2', 'hc3'.
+
+        Returns
+        -------
+        np.array of type np.float32
+        """
         return np.diag(self.vce(estimator=estimator))
 
 
     def std_err(self, estimator='hc2'):
+        """Compute the standard error associated with beta.
+
+        Parameters
+        ----------
+        estimator: string
+            One of '0', 'hc0', 'hc1', 'hc2', 'hc3'.
+
+        Returns
+        -------
+        np.array of type np.float32
+        """
         return np.sqrt(self.ve(estimator=estimator))
 
 
@@ -461,7 +482,7 @@ class Cluster(Reg):
 
 
     def vce(self, estimator='cr3'):
-        """Asymptotic covariance matrix estimation.
+        """Cluster-robust asymptotic covariance matrix estimation.
 
         Parameters
         ----------
@@ -526,7 +547,8 @@ class Cluster(Reg):
             vec = np.dot(e_hat[idx], x[idx,:])
             omega = omega + np.outer(vec, vec)
 
-        return (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        vce = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        return vce
 
 
     def ve(self, estimator='cr3'):
