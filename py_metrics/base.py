@@ -282,13 +282,11 @@ class Reg(object):
         return lb, ub
 
 
-    def p_value(self, alpha=0.05, dist='normal', vce='hc2'):
-        """Compute a confidence interval with coverage 1 - alpha.
+    def p_value(self, dist='normal', vce='hc2'):
+        """Compute the p-value for each regression coefficient.
 
         Parameters
         ----------
-        alpha: float
-            1 - alpha equals the coverage probability.
         dist: string
             One of 'normal' or 'student-t'
         estimator: string
@@ -564,7 +562,7 @@ class Cluster(Reg):
 
 
     def p_value(self, dist='normal', vce='cr3'):
-        """Compute p-values
+        """Computes a p-value for each regression coefficient.
 
         Parameters
         ----------
