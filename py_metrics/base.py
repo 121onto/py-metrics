@@ -283,7 +283,7 @@ class Reg(object):
 
 
     def p_value(self, dist='normal', vce='hc2'):
-        """Compute the p-value for each regression coefficient.
+        """Computes a p-value for each regression coefficient.
 
         Parameters
         ----------
