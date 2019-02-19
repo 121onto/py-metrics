@@ -75,8 +75,8 @@ def forecast_std_err(reg, x, estimator=None):
 
     Discussion
     ----------
-    Use this to compute a forecast interval at `x` for your regression equal
-    to x'beta +/- 2 * forecast_std_err(reg, x).
+    Use this to compute a forecast interval at x for your regression equal
+    to x' beta +/- 2 * x' V x.
 
     WARNING: Hansen warns against using this calculation as there is no rigorous
     justification for doing so.
