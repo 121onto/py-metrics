@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """Base classes."""
 from __future__ import print_function
 from __future__ import absolute_import
@@ -177,15 +175,15 @@ class Reg(object):
         ----------
         The four estimators HC0, HC1, HC2 and HC3 are collectively called
         robust, heteroskedasticity- consistent, or heteroskedasticity-robust
-        covariance matrix estimators. The HC0 estimator was Örst developed
+        covariance matrix estimators. The HC0 estimator was first developed
         by Eicker (1963) and introduced to econometrics by White (1980), and
         is sometimes called the Eicker-White or White covariance matrix
         estimator. The degree-of-freedom adjust- ment in HC1 was recommended
         by Hinkley (1977), and is the default robust covariance matrix estimator
-        implemented in Stata. It is implement by the ì,rî option, for example
-        by a regression executed with the command `reg y x, r`. In applied
-        econometric practice, this is the currently most popular covariance
-        matrix estimator. The HC2 estimator was introduced by Horn, Horn
+        implemented in Stata.  In econometric practice, this is the currently
+        most popular covariance matrix estimator.
+
+        The HC2 estimator was introduced by Horn, Horn
         and Duncan (1975) (and is implemented using the vce(hc2) option
         in Stata). The HC3 estimator was derived by MacKinnon and White (1985)
         from the jackknife principle (see Section 10.3), and by Andrews (1991a)
@@ -197,12 +195,12 @@ class Reg(object):
         Stata. However, HC2 and HC3 are preferred. HC2 is unbiased (under
         homoskedasticity) and HC3 is conservative for any x. In most
         applications HC1, HC2 and HC3 will be very similar so this choice will
-        not matter.  The context where the estimators can di§er substantially is
+        not matter.  The context where the estimators can differ substantially is
         when the sample has a large leverage value for some observation.
 
         The heteroskedasticity-robust covariance matrix estimators can be quite
         imprecise in some contexts. One is in the presence of sparse dummy
-        variables ñwhen a dummy variable only takes the value 1 or 0 for very
+        variables when a dummy variable only takes the value 1 or 0 for very
         few observations.
         """
         if not self._is_fit:
@@ -234,8 +232,7 @@ class Reg(object):
             np.multiply(np.transpose(x), e_hat),
             np.multiply(e_hat[:, np.newaxis], x)
         )
-        acov = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
-        return acov
+        return (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
 
 
     def ve(self, estimator='hc2'):
@@ -357,11 +354,11 @@ class Reg(object):
     def influence(self):
         """Computes the largest (absolute) change in the predicted value due to
         a single observation. If this diag- nostic is large relative to the
-        distribution of yi; it may indicate that that observation is ináuential.
+        distribution of yi; it may indicate that that observation is influential.
 
-        Observation i is ináuential if its omission from the sample induces
+        Observation i is influential if its omission from the sample induces
         a substantial change in a parameter estimate of interest.  Note that
-        a leverage point is not necessarily ináuential as the latter also
+        a leverage point is not necessarily influential as the latter also
         requires that the prediction error e is large.
 
         SOURCES:
@@ -445,17 +442,17 @@ class Cluster(Reg):
         There is a trade-off between bias and variance in the estimation of the
         covariance matrix by cluster-robust methods.
 
-        First, suppose cluster dependence is ignored or imposed at too Öne a level
+        First, suppose cluster dependence is ignored or imposed at too fine a level
         (e.g. clustering by households instead of villages). Then variance
         estimators will be biased as they will omit covariance terms. As correlation
         is typically positive, this suggests that standard errors will be too small,
-        giving rise to spurious indications of signiÖcance and precision.
+        giving rise to spurious indications of significance and precision.
 
         Second, suppose cluster dependence is imposed at too aggregate a measure
         (e.g. clustering by states rather than villages). This does not cause bias.
         But the variance estimators will contain many extra components, so the
         precision of the covariance matrix estimator will be poor. This means that
-        reported standard errors will be imprecise ñmore random ñthan if
+        reported standard errors will be imprecise and more random than if
         clustering had been less aggregate.
         """
         self.grp = frame[self.grp_col].copy(deep=True).astype(np.float32).values
@@ -488,8 +485,8 @@ class Cluster(Reg):
         should be viewed as the number of clusters, not the sample size n.
 
         Most cluster-robust theory assumes that the clusters are
-        homogeneous.  When this is violated ñwhen, for example, cluster sizes
-        are highly heterogeneous ñthe regression should be viewed as roughly
+        homogeneous.  When this is violated, for example, cluster sizes
+        are highly heterogeneous, the regression should be viewed as roughly
         equivalent to the heteroskedasticity-robust case with an extremely high
         degree of heteroskedasticity.
 
@@ -528,8 +525,8 @@ class Cluster(Reg):
         for label, idx in self.grp_idx.items():
             vec = np.dot(e_hat[idx], x[idx,:])
             omega = omega + np.outer(vec, vec)
-        acov = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
-        return acov
+
+        return (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
 
 
     def ve(self, estimator='cr3'):
