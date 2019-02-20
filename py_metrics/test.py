@@ -37,7 +37,7 @@ class Stat(object):
 # TTest
 ###########################################################################
 
-class Wald(Stat):
+class TTest(Stat):
     def __init__(self, theta, theta_0=None, vce=None):
         """Student-t test statistic.
 
@@ -51,6 +51,9 @@ class Wald(Stat):
         vce: np.array of type np.float32 and shape (q,q)
             An estimate of the variance-covariance matrix associated
             with theta.
+        dist: string
+            Specifies the distribution to evaluate against.  Must be
+            one of 'normal' or 'student-t' (defaults to 'normal').
         """
         if vce is None:
             raise ValueError('''
@@ -60,6 +63,7 @@ class Wald(Stat):
         self.theta = theta
         self.theta_0 = np.zeros_like(theta) if theta_0 is None else theta_0
         self.vce = vce
+        self.dist = dist
 
         self.value = None
         self._is_fit = False
@@ -76,21 +80,81 @@ class Wald(Stat):
         self._is_fit = True
 
 
-    def c_bound(self, alpha):
-        """Computes the confidence bound associated with the Wald test statistic.
+    def c_bound(self, alpha, two_sided=True, dist='normal', df=None):
+        """Computes the confidence bound associated with the t-test statistic.
+
+        Parameters
+        ----------
+        alpha: float
+            The confidence level (default 0.05).
+        two_sided: boolean
+            Wether you'd like to perform a two-sided test (default True).
+        dist: string
+            Specifies the distribution to evaluate against.  Must be
+            one of 'normal' or 'student-t' (defaults to 'normal').
+        df: float or None
+            if `dist` equals 'student-t' then this parameter specifies the
+            degrees of freedom to use, generally equal to n - k where n is
+            the sample size and k is the number of effective parameters in
+            your regression.
+
+        Returns
+        -------
+        float
         """
-        return chi2.ppf(1 - alpha, df=self.q)
+        if dist == 'normal':
+            ppf = normal.ppf
+        elif dist == 'student-t':
+            ppf = lambda x: student_t.ppf(x, df=df)
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `confidence_interval`.''')
+
+        c = ppf(1 - (alpha / 2)) if two_sided else ppf(1 - alpha)
+        std_err = self.std_err(estimator=vce)
+        return c * std_err
 
 
-    def p_value(self):
-        """Computes the p-value associated with the Wald test statistic.
+    def p_value(self, two_sided=True, dist='normal', df=None):
+        """Computes the p-value associated with the t-test statistic.
+
+        Parameters
+        ----------
+        two_sided: boolean
+            Wether you'd like to perform a two-sided test (default True).
+        dist: string
+            Specifies the distribution to evaluate against.  Must be
+            one of 'normal' or 'student-t' (defaults to 'normal').
+        df: float or None
+            if `dist` equals 'student-t' then this parameter specifies the
+            degrees of freedom to use, generally equal to n - k where n is
+            the sample size and k is the number of effective parameters in
+            your regression.
+
+        Returns
+        -------
+        float
+
         """
         if not self._is_fit:
             raise RuntimeError('''
             You must run `fit` before calling `p_value`.''')
+        if dist == 'normal':
+            cdf = normal.ppf
+        elif dist == 'student-t':
+            cdf = lambda x: student_t.ppf(x, df=df)
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `confidence_interval`.''')
 
-        return chi2.cdf(self.value, df=self.q)
+        if two_sided:
+            p_value = 2 * (1 - cdf(np.absolute(self.value)))
+        else:
+            p_value = (1 - cdf(np.absolute(self.value)))
 
+        return p_value
 
 ###########################################################################
 # Wald
@@ -149,4 +213,4 @@ class Wald(Stat):
             raise RuntimeError('''
             You must run `fit` before calling `p_value`.''')
 
-        return chi2.cdf(self.value, df=self.q)
+        return 1 - chi2.cdf(self.value, df=self.q)
