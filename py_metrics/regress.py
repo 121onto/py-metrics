@@ -138,6 +138,8 @@ class Reg(object):
         increases when regressors are added to a regression model.
 
         Always prefer 'r-til2' over the alternatives.
+
+        SOURCE: Hansen, Chapter 4.18, page 125.
         """
         if estimator not in ('r2', 'r-bar2', 'r-til2'):
             raise ValueError('''
