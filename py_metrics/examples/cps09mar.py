@@ -9,6 +9,7 @@ import pandas as pd
 
 from py_metrics import caches, base
 from py_metrics import nlcom
+from py_metrics import test
 
 ###########################################################################
 # Featurize
@@ -238,6 +239,7 @@ def reg_4():
         columns=reg.x_cols)
     print(vce) # OUT: equation 7.32, page 236
 
+    # Test for nlcom
     gradient = lambda beta: [100, 0, 0, 0]
     print('\ns(theta_1):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~0.8
     gradient = lambda beta: [0, 100, 20, 0]
@@ -246,6 +248,12 @@ def reg_4():
     gradient = lambda beta: [0, (-50 / beta[2]), (50 * beta[1] / (beta[2] ** 2)), 0]
     print('s(theta_3):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~7.0
 
+    # Test for test.Wald
+    R = np.array([[100, 0, 0, 0], [0, 100, 20, 0]])
+    theta = np.matmul(R, reg.beta)
+    gradient = lambda beta: np.transpose(R)
+    vce = nlcom.vce(reg, gradient=gradient)
+    stat = test.Wald(theta, vce=vce)
 
 ###########################################################################
 # Main
