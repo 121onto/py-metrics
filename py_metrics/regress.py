@@ -393,7 +393,7 @@ class Reg(object):
         return (self.h * self.e_til).max()
 
 
-    def summarize(self, alpha=0.05, dist='normal', vce='hc2'):
+    def summarize(self, dist='normal', vce='hc2'):
         if not self._is_fit:
             raise RuntimeError('''
             You must run `fit` before calling `summarize`.''')
@@ -622,8 +622,8 @@ class Cluster(Reg):
         raise NotImplementedError
 
 
-    def summarize(self, alpha=0.05, dist='normal', vce='cr3'):
-        super().summarize(alpha=alpha, dist=dist, vce=vce)
+    def summarize(self, dist='normal', vce='cr3'):
+        super().summarize(dist=dist, vce=vce)
 
 
 ###########################################################################
@@ -911,5 +911,5 @@ class CnsReg(Reg):
         raise NotImplementedError
 
 
-    def summarize(self, alpha=0.05, dist='normal', vce='0'):
-        super().summarize(alpha=alpha, dist=dist, vce=vce)
+    def summarize(self, dist='normal', vce='0'):
+        super().summarize(dist=dist, vce=vce)
