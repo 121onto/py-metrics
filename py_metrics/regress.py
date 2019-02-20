@@ -1,4 +1,4 @@
-"""Base classes."""
+"""Regression in various forms."""
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
@@ -144,7 +144,9 @@ class Reg(object):
             `estimator` must be one of 'r2', 'r-bar2', or 'r-til2'
             in call to `r2`.''')
 
+        n, k = self.n, self.k
         o_yhat = self.ssy / self.n
+
         if estimator == 'r2':
             r2 = (1 - (self.o_hat / o_yhat))
         elif estimator == 'r-bar2':
@@ -481,6 +483,17 @@ class Cluster(Reg):
         return super().fit(frame)
 
 
+    def predict(self, frame):
+        # see `Reg.predict` for details
+        return super().predict(frame=frame)
+
+
+    def r2(self, estimator='r-til2'):
+        # TODO (121onto): confirm these calculations are reasonable in
+        #   a clustered regression.
+        return super().r2(estimator=estimator)
+
+
     def vce(self, estimator='cr3'):
         """Cluster-robust asymptotic covariance matrix estimation.
 
@@ -726,6 +739,49 @@ class CnsReg(Reg):
         self._is_fit = True
 
         self.residuals()
+
+
+    def predict(self, frame):
+        # see `Reg.predict` for details
+        return super().predict(frame=frame)
+
+
+    def r2(self, estimator='r-bar2'):
+        """Compute R2 measure of fit.
+
+        Parameters
+        ----------
+        estimator: string
+            Must equal one of 'r2' or 'r-bar2' (defaults to 'r-bar2').
+
+        Returns
+        -------
+        float
+
+        Discussion
+        ----------
+        These are ad-hoc at this point.
+
+        TODO (121onto): confirm these estimates are reasonable.
+        """
+        if estimator not in ('r2', 'r-bar2'):
+            raise ValueError('''
+            `estimator` must be one of 'r2' or 'r-bar2' in call to `r2`.''')
+
+        x, y = self.x, self.y
+        n, k, q = self.n, self.k, self.q
+
+        o_hat = self.s_cls
+        o_yhat = self.ssy / self.n
+
+        if estimator == 'r2':
+            r2 = (1 - (self.o_hat / o_yhat))
+        elif estimator == 'r-bar2':
+            r2 = (1 - (n-1) / (n-k+q) * (self.o_hat / o_yhat))
+        else: # NOTE: this code should never execute
+            r2 = None
+
+        return r2
 
 
     def vce(self, estimator='0'):

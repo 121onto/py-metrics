@@ -254,7 +254,7 @@ def reg_4():
     vce = nlcom.vce(reg, gradient=gradient) # [[0.632, 0.103], [0.103, 0.157]]
     stat = test.Wald(theta, vce=vce)
     print('Wald (stat):', stat.value)
-    print('Wald (p-value):', stat.p_value)
+    print('Wald (p-value):', stat.p_value())
 
 
 ###########################################################################
