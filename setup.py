@@ -30,11 +30,11 @@ setup(
     version=__version__,
     python_requires='>=3.6',
     description='Use python for econometrics',
-    author='Kalu',
-    author_email='kalu@121onto.com',
+    author='121onto',
+    author_email='121onto@gmail.com',
 
     cmdclass={'develop': Cache},
-    packages=find_packages(exclude=['output', 'tests']),
+    packages=find_packages(exclude=['output', 'tests', 'examples']),
     include_package_data=True,
 
     install_requires=[
