@@ -145,14 +145,14 @@ class Reg(object):
             in call to `r2`.''')
 
         n, k = self.n, self.k
-        o_yhat = self.ssy / self.n
+        o2_yhat = self.ssy / self.n
 
         if estimator == 'r2':
-            r2 = (1 - (self.o_hat / o_yhat))
+            r2 = (1 - (self.o_hat ** 2 / o2_yhat))
         elif estimator == 'r-bar2':
-            r2 = (1 - (n-1) / (n-k) * (self.o_hat / o_yhat))
+            r2 = (1 - (n - 1) / (n - k) * (self.o_hat ** 2 / o2_yhat))
         elif estimator == 'r-til2':
-            r2 = (1 - (self.o_til / o_yhat))
+            r2 = (1 - (self.o_til ** 2 / o2_yhat))
         else: # NOTE: this code should never execute
             r2 = None
 
@@ -772,12 +772,12 @@ class CnsReg(Reg):
         n, k, q = self.n, self.k, self.q
 
         o_hat = self.s_cls
-        o_yhat = self.ssy / self.n
+        o2_yhat = self.ssy / self.n
 
         if estimator == 'r2':
-            r2 = (1 - (self.o_hat / o_yhat))
+            r2 = (1 - (self.o_hat ** 2 / o2_yhat))
         elif estimator == 'r-bar2':
-            r2 = (1 - (n-1) / (n-k+q) * (self.o_hat / o_yhat))
+            r2 = (1 - (n - 1) / (n - k + q) * (self.o_hat ** 2 / o2_yhat))
         else: # NOTE: this code should never execute
             r2 = None
 
