@@ -229,7 +229,6 @@ def reg_4():
     x = ['education', 'experience', 'experience^2/100', 'intercept']
     reg = base.Reg(x, y)
     reg.fit(frame)
-
     reg.summarize() # OUT: equation 7.31, page 236
 
     print('\nvce(hc2): ')
@@ -239,7 +238,7 @@ def reg_4():
         columns=reg.x_cols)
     print(vce) # OUT: equation 7.32, page 236
 
-    # Test for nlcom
+    # Check that nlcom returns reasonable results
     gradient = lambda beta: [100, 0, 0, 0]
     print('\ns(theta_1):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~0.8
     gradient = lambda beta: [0, 100, 20, 0]
@@ -248,12 +247,15 @@ def reg_4():
     gradient = lambda beta: [0, (-50 / beta[2]), (50 * beta[1] / (beta[2] ** 2)), 0]
     print('s(theta_3):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~7.0
 
-    # Test for test.Wald
+    # Check that test.Wald returns reasonable results
     R = np.array([[100, 0, 0, 0], [0, 100, 20, 0]])
     theta = np.matmul(R, reg.beta)
     gradient = lambda beta: np.transpose(R)
-    vce = nlcom.vce(reg, gradient=gradient)
+    vce = nlcom.vce(reg, gradient=gradient) # [[0.632, 0.103], [0.103, 0.157]]
     stat = test.Wald(theta, vce=vce)
+    print('Wald (stat):', stat.value)
+    print('Wald (p-value):', stat.p_value)
+
 
 ###########################################################################
 # Main

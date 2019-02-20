@@ -62,7 +62,7 @@ class Wald(Stat):
         self.vce = vce
         self.q = vce.shape[0]
 
-        self.stat = None
+        self.value = None
         self._is_fit = False
         self.fit()
 
@@ -73,7 +73,7 @@ class Wald(Stat):
         l = self.theta if self.theta_0 is None else (self.theta - self.theta_0)
         r, _, _, _ = lstsq(self.vce, l)
 
-        self.stat = np.matmul(np.transpose(l), r)
+        self.value = np.matmul(np.transpose(l), r)
         self._is_fit = True
 
 
@@ -90,4 +90,4 @@ class Wald(Stat):
             raise RuntimeError('''
             You must run `fit` before calling `p_value`.''')
 
-        return chi2.cdf(self.stat, df=self.q)
+        return chi2.cdf(self.value, df=self.q)
