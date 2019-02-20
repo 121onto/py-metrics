@@ -23,7 +23,7 @@ def vce(reg, gradient, estimator=None):
 
     Parameters
     ----------
-    reg: one of base.Reg or base.Cluster
+    reg: one of regress.Reg, regress.Cluster, or regress.CnsReg
         You must run `fit` on this object before passing it in.
     gradient: function or None
         The gradient of your functional, takes beta as an argument and
@@ -64,7 +64,7 @@ def forecast_std_err(reg, x, estimator=None):
 
     Parameters
     ----------
-    est: one of base.Reg or base.Cluster
+    reg: one of regress.Reg, regress.Cluster, or regress.CnsReg
         You must run `fit` on this object before passing it in.
     x: np.array of type np.float32
         The value at which you would like to compute a forecast interval.

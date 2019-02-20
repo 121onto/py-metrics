@@ -7,7 +7,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from py_metrics import caches, base
+from py_metrics import caches, regress
 
 ###########################################################################
 # Featurize
@@ -48,7 +48,7 @@ def reg_1():
     x = ['intercept', 'tracking']
     y = 'testscore'
 
-    reg = base.Reg(x, y)
+    reg = regress.Reg(x, y)
     reg.fit(frame)
     reg.summarize()
 
@@ -64,7 +64,7 @@ def reg_2():
     y = 'testscore'
     grp = 'schoolid'
 
-    reg = base.Cluster(x, y, grp)
+    reg = regress.Cluster(x, y, grp)
     reg.fit(frame)
     reg.summarize(vce='cr3') # OUT: see Hansen's equation 4.52, page 134
 

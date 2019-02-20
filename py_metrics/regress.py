@@ -597,13 +597,263 @@ class Cluster(Reg):
         return super().p_value(dist=dist, vce=vce)
 
 
-    def leverage():
+    def msfe(self):
         raise NotImplementedError
 
 
-    def influence():
+    def leverage(self):
+        raise NotImplementedError
+
+
+    def influence(self):
         raise NotImplementedError
 
 
     def summarize(self, alpha=0.05, dist='normal', vce='cr3'):
+        super().summarize(alpha=alpha, dist=dist, vce=vce)
+
+
+###########################################################################
+# Constrained least squares
+###########################################################################
+
+class CnsReg(Reg):
+    def __init__(self, x_cols, y_col, R=None, c=None):
+
+        # Columns defining estimation
+        self.x_cols = x_cols
+        self.y_col = y_col
+        self.k = len(x_cols)
+        self.n = None
+        self.q = None if c is None else c.shape[0]
+
+        # Restrictions
+        self.R = R
+        self.c = c
+
+        # Data arraays
+        self.x = None
+        self.y = None
+        #self.h = None
+
+        # Hat matrices
+        self.qxx = None
+        self.qxy = None
+        self.qxx_inv = None
+        self.qi_r = None
+        self.r_qi_r = None
+
+        # Coefficient estimates
+        self.beta_ols = None
+        self.beta = None
+        self._is_fit = False
+
+        # Diagnostics
+        self.e_til = None
+        # self.e_hat = None
+        # self.e_bar = None
+        self.sse = None
+        self.ssy = None
+
+        # Error variance estimators
+        self.s_cls = None
+        # self.o_hat = None
+        # self.o_til = None
+        # self.o_bar = None
+        # self.s_hat = None
+
+    def residuals(self):
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `fit` before calling `residuals`.''')
+
+        # Compute residuals
+        x, y = self.x, self.y
+        n, k, q = self.n, self.k, self.q
+
+        # residuals
+        self.e_til = e_til = y - np.matmul(x, self.beta)
+
+        # errors
+        self.ssy = ((y - y.mean()) ** 2).sum()
+        self.sse = sse = (e_til ** 2).sum()
+
+        # se estimators
+        self.s_cls = np.sqrt(sse / (n - k + q))
+
+
+    def fit(self, frame, R=None, c=None):
+        """Regression for constrained least squares.
+
+        Parameters
+        ----------
+        frame: pd.DataFrame with columns of type np.float32
+            The data.
+        R: np.array of type np.float32 of shape (k,q)
+            The constraint matrix (optional if set during initialization).
+        c: np.array of type np.float32 of shape (q,)
+            The constraint value such that R'beta = c (optional if set during initialization).
+
+        Discussion
+        ----------
+        """
+        self.R = self.R if R is None else R
+        self.c = self.c if c is None else c
+        self.q = self.q if c is None else c.shape[0]
+
+        self.x = x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
+        self.y = y = frame[self.y_col].copy(deep=True).astype(np.float32).values
+        self.n = frame.shape[0]
+        n, k, q = self.n, self.k, self.q
+
+        # ols operations
+        self.qxx = np.matmul(np.transpose(x), x)
+        self.qxy = np.matmul(np.transpose(x), y)
+        self.qxx_inv = inv(self.qxx)
+
+        # Fit the unconstrained regression
+        self.beta_ols, _, _, _ = lstsq(x, y)
+
+        # cls operations
+        self.qi_r = qi_r = np.matmul(self.qxx_inv, R)
+        self.r_qi_r = r_qi_r = np.matmul(R, qi_r)
+        rb = np.dot(np.transpose(R), self.beta_ols)
+        r,_,_,_ = lstsq(r_qi_r, rb - c)
+        l = qi_r
+
+        # Fit the constrained regression
+        self.beta = beta_ols - np.matmul(l, r)
+        self._is_fit = True
+
+        self.residuals()
+
+
+    def vce(self, estimator='0'):
+        """Cluster-robust asymptotic covariance matrix estimation.
+
+        Parameters
+        ----------
+        estimator: string
+            One of '0', ...
+
+        Returns
+        -------
+        float
+
+        Discussion
+        ----------
+        The covariance estimator implemented here assumes homoskedasticity.
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `fit` before calling `vce`.''')
+
+        if estimator not in ('0'):
+            raise ValueError('''
+            Argument `estimator` must be one of '0', ...
+            in call to `vce`.''')
+
+        x, y, o_hat = self.x, self.y, self.s_cls
+        n, k, q = self.n, self.k, self.q
+
+        qxx_inv = self.qxx_inv
+        r_qi_r = self.r_qi_r
+        r_qi = self.r_qi
+
+        r,_,_,_ = lstsq(r_qi_r, np.transpose(qi_r))
+        l = qi_r
+        vce = (qxx_inv - np.matmul(l, r)) * (o_hat ** 2)
+        return vce
+
+
+    def ve(self, estimator='0'):
+        # see `CnsReg.vce` for options
+        return super().ve(estimator=estimator)
+
+
+    def std_err(self, estimator='0'):
+        # see `CnsReg.vce` for options
+        return super().std_err(estimator=estimator)
+
+
+    def confidence_interval(self, alpha=0.05, dist='normal', vce='0'):
+        """Compute a confidence interval with coverage 1 - alpha.
+
+        Parameters
+        ----------
+        alpha: float
+            1 - alpha equals the coverage probability.
+        dist: string
+            One of 'normal' or 'student-t'
+        estimator: string
+            One of '0', ...
+
+        Returns
+        -------
+        two np.arrays of type np.float32
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `fit` before calling `confidence_interval`.''')
+
+        if dist == 'normal':
+            ppf = normal.ppf
+        elif dist == 'student-t':
+            ppf = lambda x: student_t.ppf(x, df=(self.n - self.k + self.q))
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `confidence_interval`.''')
+
+        c = ppf(1 - (alpha / 2))
+        std_err = self.std_err(estimator=vce)
+        lb = self.beta - c * std_err
+        ub = self.beta + c * std_err
+        return lb, ub
+
+
+    def p_value(self, dist='normal', vce='0'):
+        """Computes a p-value for each regression coefficient.
+
+        Parameters
+        ----------
+        dist: string
+            One of 'normal' or 'student-t'
+        estimator: string
+            One of '0', ...
+
+        Returns
+        -------
+        two np.arrays of type np.float32
+        """
+        if not self._is_fit:
+            raise RuntimeError('''
+            You must run `fit` before calling `p_value`.''')
+
+        if dist == 'normal':
+            cdf = normal.cdf
+        elif dist == 'student-t':
+            cdf = lambda x: student_t.cdf(x, df=(self.n - self.k + self.q))
+        else:
+            raise ValueError('''
+            Argument `dist` must be one of 'narmal' or 'student-t'
+            in call to `p_value`.''')
+
+        t = self.beta / self.std_err(estimator=vce)
+        return 2 * (1 - cdf(np.absolute(t)))
+
+
+    def msfe(self):
+        raise NotImplementedError
+
+
+    def leverage(self):
+        raise NotImplementedError
+
+
+    def influence(self):
+        raise NotImplementedError
+
+
+    def summarize(self, alpha=0.05, dist='normal', vce='0'):
         super().summarize(alpha=alpha, dist=dist, vce=vce)

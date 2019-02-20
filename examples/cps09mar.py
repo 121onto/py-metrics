@@ -7,7 +7,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from py_metrics import caches, base
+from py_metrics import caches, regress
 from py_metrics import nlcom
 from py_metrics import test
 
@@ -153,7 +153,7 @@ def reg_1():
 
     y = 'log(wage)'
     x = ['education', 'intercept']
-    reg = base.Reg(x, y)
+    reg = regress.Reg(x, y)
     reg.fit(frame)
 
     # SOURCE: chapter 4.15, page 121
@@ -177,7 +177,7 @@ def reg_2():
 
     y = 'log(wage)'
     x = ['intercept', 'education', 'experience', 'experience^2']
-    reg = base.Reg(x, y)
+    reg = regress.Reg(x, y)
     reg.fit(frame)
 
     # Chapter 3.21, page 92
@@ -211,7 +211,7 @@ def reg_3():
         'intercept',
     ]
 
-    reg = base.Reg(x, y)
+    reg = regress.Reg(x, y)
     reg.fit(frame)
 
     # Chapter 4.19, pages 126-127
@@ -227,7 +227,7 @@ def reg_4():
 
     y = 'log(wage)'
     x = ['education', 'experience', 'experience^2/100', 'intercept']
-    reg = base.Reg(x, y)
+    reg = regress.Reg(x, y)
     reg.fit(frame)
     reg.summarize() # OUT: equation 7.31, page 236
 
