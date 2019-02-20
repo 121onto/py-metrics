@@ -26,7 +26,7 @@ TODO (121onto): release `v0.0.1` and update these instructions to install from
 Documentation
 -------------
 
-See the project wiki for official docs [link](https://github.com/121onto/py-metrics/wiki).
+See the project wiki for official docs ([link](https://github.com/121onto/py-metrics/wiki)).
 Additional examples are available in the examples directory.
 
 
