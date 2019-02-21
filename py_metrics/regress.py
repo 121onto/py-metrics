@@ -96,9 +96,9 @@ class Reg(object):
         # Fit the regression
         self.beta, self.sse, _, _ = lstsq(x, y)
         self.ssy = ((y - y.mean()) ** 2).sum()
-        self._is_fit = True
-
         self.residuals()
+
+        self._is_fit = True
 
 
     def predict(self, frame):
@@ -155,8 +155,8 @@ class Reg(object):
             r2 = (1 - (n - 1) / (n - k) * (self.o_hat ** 2 / o2_yhat))
         elif estimator == 'r-til2':
             r2 = (1 - (self.o_til ** 2 / o2_yhat))
-        else: # NOTE: this code should never execute
-            r2 = None
+        else:
+            raise NotImplementedError
 
         return r2
 
@@ -214,20 +214,25 @@ class Reg(object):
             Argument `estimator` must be one of '0', 'hc0', 'hc1', 'hc2', or 'hc3'
             in call to `vce`.''')
 
+        x = self.x
+        n, k = self.n, self.k
+
         if estimator == '0':
             return self.qxx_inv * (self.s_hat ** 2)
         elif estimator == 'hc0':
-            e_hat, x = self.e_hat, self.x
+            e_hat = self.e_hat
             norm = 1
         elif estimator == 'hc1':
-            e_hat, x = self.e_hat, self.x
-            norm = self.n / (self.n - self.k)
+            e_hat = self.e_hat
+            norm = n / (n - k)
         elif estimator == 'hc2':
-            e_hat, x = self.e_bar, self.x
+            e_hat = self.e_bar
             norm = 1
         elif estimator == 'hc3':
-            e_hat, x = self.e_til, self.x
+            e_hat = self.e_til
             norm = 1
+        else:
+            raise NotImplementedError
 
         qxx_inv = self.qxx_inv
         omega = np.matmul(
@@ -547,14 +552,16 @@ class Cluster(Reg):
         n, k, G = self.n, self.k, len(self.grp_idx)
 
         if estimator == 'cr0':
-            e_hat, x = self.e_hat, self.x
+            e_hat = self.e_hat
             norm = 1
         elif estimator == 'cr1':
-            e_hat, x = self.e_hat, self.x
+            e_hat = self.e_hat
             norm = (n / (n - k)) * (G / (G - 1))
         elif estimator == 'cr3':
-            e_hat, x = self.e_til, self.x
+            e_hat = self.e_til
             norm = 1
+        else:
+            raise NotImplementedError
 
         qxx_inv = self.qxx_inv
         omega = np.zeros([k, k], dtype=np.float32)
@@ -633,7 +640,7 @@ class Cluster(Reg):
 ###########################################################################
 
 class CnsReg(Reg):
-    def __init__(self, x_cols, y_col, R=None, c=None):
+    def __init__(self, x_cols, y_col, r=None, c=None):
 
         # Columns defining estimation
         self.x_cols = x_cols
@@ -643,13 +650,12 @@ class CnsReg(Reg):
         self.q = None if c is None else c.shape[0]
 
         # Restrictions
-        self.R = R
+        self.r = r
         self.c = c
 
         # Data arraays
         self.x = None
         self.y = None
-        #self.h = None
 
         # Hat matrices
         self.qxx = None
@@ -664,18 +670,18 @@ class CnsReg(Reg):
         self._is_fit = False
 
         # Diagnostics
-        self.e_til = None
-        # self.e_hat = None
-        # self.e_bar = None
+        self.e_ols = None
+        self.e_hat = None
+        self.sse_ols = None
         self.sse = None
         self.ssy = None
 
         # Error variance estimators
-        self.s_cls = None
-        # self.o_hat = None
-        # self.o_til = None
-        # self.o_bar = None
-        # self.s_hat = None
+        self.o_ols = None
+        self.s_ols = None
+        self.o_hat = None
+        self.s_hat = None
+
 
     def residuals(self):
         if not self._is_fit:
@@ -687,24 +693,29 @@ class CnsReg(Reg):
         n, k, q = self.n, self.k, self.q
 
         # residuals
+        self.e_ols = e_ols = y - np.matmul(x, self.beta_ols)
         self.e_til = e_til = y - np.matmul(x, self.beta)
 
         # errors
+        self.sse_ols = sse_ols = (e_ols ** 2).sum()
         self.ssy = ((y - y.mean()) ** 2).sum()
         self.sse = sse = (e_til ** 2).sum()
 
         # se estimators
-        self.s_cls = np.sqrt(sse / (n - k + q))
+        self.o_ols = np.sqrt(sse_ols / n)
+        self.s_ols = np.sqrt(sse_ols / (n - k))
+        self.o_hat = np.sqrt(sse / n)
+        self.s_hat = np.sqrt(sse / (n - k + q))
 
 
-    def fit(self, frame, R=None, c=None):
+    def fit(self, frame, r=None, c=None):
         """Regression for constrained least squares.
 
         Parameters
         ----------
         frame: pd.DataFrame with columns of type np.float32
             The data.
-        R: np.array of type np.float32 of shape (k,q)
+        r: np.array of type np.float32 of shape (k,q)
             The constraint matrix (optional if set during initialization).
         c: np.array of type np.float32 of shape (q,)
             The constraint value such that R'beta = c (optional if set during initialization).
@@ -712,7 +723,7 @@ class CnsReg(Reg):
         Discussion
         ----------
         """
-        self.R = self.R if R is None else R
+        self.r = r = self.r if r is None else r
         self.c = self.c if c is None else c
         self.q = self.q if c is None else c.shape[0]
 
@@ -730,17 +741,17 @@ class CnsReg(Reg):
         self.beta_ols, _, _, _ = lstsq(x, y)
 
         # cls operations
-        self.qi_r = qi_r = np.matmul(self.qxx_inv, R)
-        self.r_qi_r = r_qi_r = np.matmul(R, qi_r)
-        rb = np.dot(np.transpose(R), self.beta_ols)
-        r,_,_,_ = lstsq(r_qi_r, rb - c)
-        l = qi_r
+        self.qi_r = qi_r = np.matmul(self.qxx_inv, r)
+        self.r_qi_r = r_qi_r = np.matmul(r, qi_r)
+        rb = np.dot(np.transpose(r), self.beta_ols)
+        rhs,_,_,_ = lstsq(r_qi_r, rb - c)
+        lhs = qi_r
 
         # Fit the constrained regression
-        self.beta = beta_ols - np.matmul(l, r)
-        self._is_fit = True
-
+        self.beta = self.beta_ols - np.matmul(lhs, rhs)
         self.residuals()
+
+        self._is_fit = True
 
 
     def predict(self, frame):
@@ -773,26 +784,26 @@ class CnsReg(Reg):
         x, y = self.x, self.y
         n, k, q = self.n, self.k, self.q
 
-        o_hat = self.s_cls
         o2_yhat = self.ssy / self.n
-
         if estimator == 'r2':
+            o_hat = self.o_ols
             r2 = (1 - (self.o_hat ** 2 / o2_yhat))
         elif estimator == 'r-bar2':
-            r2 = (1 - (n - 1) / (n - k + q) * (self.o_hat ** 2 / o2_yhat))
-        else: # NOTE: this code should never execute
-            r2 = None
+            o_hat = self.o_hat
+            r2 = (1 - (n - 1) / (n - k + q) * (o_hat ** 2 / o2_yhat))
+        else:
+            raise NotImplementedError
 
         return r2
 
 
-    def vce(self, estimator='0'):
-        """Cluster-robust asymptotic covariance matrix estimation.
+    def vce(self, estimator='cns2'):
+        """Constrained least squares asymptotic covariance matrix estimation.
 
         Parameters
         ----------
         estimator: string
-            One of '0', ...
+            One of '0', 'cns0', 'cns1', or 'cns2' (defautl 'cns2').
 
         Returns
         -------
@@ -800,41 +811,74 @@ class CnsReg(Reg):
 
         Discussion
         ----------
-        The covariance estimator implemented here assumes homoskedasticity.
+        The covariance estimator '0' works under the assumption of homoskedasticity.
+        Both 'cns0' and 'cns1' are heteroskedasticity-robust and based on residuals
+        from the unconstrained regression.  'cns2' uses residuals from the
+        constrained regression.
+
+        SOURCES: Homoskedastic estimator is from Hansen, Chapter 8.4, page 263.
+        The heteroskedasticity-robust estimator is from Hansen, Chapter 8.7,
+        page 268.
         """
         if not self._is_fit:
             raise RuntimeError('''
             You must run `fit` before calling `vce`.''')
 
-        if estimator not in ('0'):
+        if estimator not in ('0', 'cns0', 'cns1', 'cns2'):
             raise ValueError('''
-            Argument `estimator` must be one of '0', ...
+            Argument `estimator` must be one of '0', 'cns0', 'cns1', 'cns2'
             in call to `vce`.''')
 
-        x, y, o_hat = self.x, self.y, self.s_cls
+        x, r = self.x, self.r
         n, k, q = self.n, self.k, self.q
 
-        qxx_inv = self.qxx_inv
-        r_qi_r = self.r_qi_r
-        r_qi = self.r_qi
+        if estimator == '0':
+            o_hat = self.s_hat
+            rhs,_,_,_ = lstsq(self.r_qi_r, np.transpose(self.qi_r))
+            vce = (self.qxx_inv - np.matmul(self.qi_r, rhs)) * (o_hat ** 2)
+            return vce
+        elif estimator == 'cns0':
+            e_hat = self.e_ols
+            norm = 1
+        elif estimator == 'cns1':
+            e_hat = self.e_ols
+            norm = n / (n - k)
+        elif estimator == 'cns2':
+            e_hat = self.e_til
+            norm = n / (n - k + q)
+        else:
+            raise NotImplementedError
 
-        r,_,_,_ = lstsq(r_qi_r, np.transpose(qi_r))
-        l = qi_r
-        vce = (qxx_inv - np.matmul(l, r)) * (o_hat ** 2)
+        qxx_inv, qi_r, r_qi_r = self.qxx_inv, self.qi_r, self.r_qi_r
+        omega = np.matmul(
+            np.multiply(np.transpose(x), e_hat),
+            np.multiply(e_hat[:, np.newaxis], x)
+        )
+        v_beta = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        solve_r,_,_,_ = lstsq(r_qi_r, np.transpose(r))
+
+        lhs = np.matmul(qi_r, solve_r)
+        rhs = np.matmul(np.matmul(r, solve_r), qxx_inv)
+        vce = (
+            v_beta
+            - np.matmul(lhs, v_beta)
+            - np.matmul(v_beta, rhs)
+            + np.matmul(np.matmul(lhs, v_beta), rhs))
+
         return vce
 
 
-    def ve(self, estimator='0'):
+    def ve(self, estimator='cns2'):
         # see `CnsReg.vce` for options
         return super().ve(estimator=estimator)
 
 
-    def std_err(self, estimator='0'):
+    def std_err(self, estimator='cns2'):
         # see `CnsReg.vce` for options
         return super().std_err(estimator=estimator)
 
 
-    def confidence_interval(self, alpha=0.05, dist='normal', vce='0'):
+    def confidence_interval(self, alpha=0.05, dist='normal', vce='cns2'):
         """Compute a confidence interval with coverage 1 - alpha.
 
         Parameters
@@ -870,7 +914,7 @@ class CnsReg(Reg):
         return lb, ub
 
 
-    def p_value(self, dist='normal', vce='0'):
+    def p_value(self, dist='normal', vce='cns2'):
         """Computes a p-value for each regression coefficient.
 
         Parameters
@@ -913,5 +957,5 @@ class CnsReg(Reg):
         raise NotImplementedError
 
 
-    def summarize(self, dist='normal', vce='0'):
+    def summarize(self, dist='normal', vce='cns2'):
         super().summarize(dist=dist, vce=vce)
