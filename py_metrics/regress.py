@@ -12,6 +12,8 @@ from scipy.stats import t as student_t
 from numpy.linalg import inv
 from numpy.linalg import cholesky
 
+from py_metrics import core
+
 ###########################################################################
 # OLS
 ###########################################################################
@@ -26,32 +28,35 @@ class Reg(object):
         self.k = len(x_cols)
         self.n = None
 
-        # Data arraays
+        # Data arrays
         self.x = None
         self.y = None
         self.h = None
+
+        # Flags
+        self._is_fit = False
 
         # Hat matrices
         self.qxx = None
         self.qxy = None
         self.qxx_inv = None
 
-        # Coefficient estimates
+        # Coefficients and errors
         self.beta = None
-        self._is_fit = False
-
-        # Diagnostics
-        self.e_hat = None
-        self.e_til = None
-        self.e_bar = None
         self.sse = None
         self.ssy = None
 
-        # Error variance estimators
+        # Residuals
+        self.e_hat = None
+        self.e_til = None
+        self.e_bar = None
+
+        # Residual variance estimators
+        self.o_tot = None
         self.o_hat = None
+        self.s_hat = None
         self.o_til = None
         self.o_bar = None
-        self.s_hat = None
 
 
     def residuals(self):
@@ -59,18 +64,18 @@ class Reg(object):
             raise RuntimeError('''
             You must run `Reg.fit` before calling `Reg.residuals`.''')
 
-        # Compute residuals
+        # Data references
         x, y = self.x, self.y
         n, k = self.n, self.k
 
-        # Errors
-        self.e_hat = e_hat = y - np.matmul(x, self.beta)
+        # Residuals
+        self.e_hat = e_hat = y - np.dot(x, self.beta)
         self.e_til = ((1 - self.leverage()) ** -1 ) * e_hat
         self.e_bar = ((1 - self.leverage()) ** -0.5 ) * e_hat
 
-        # Summary stats
-        # TODO (121onto): run experiments to determine whether I should pull `leverage`
-        #   out from under the `** 2` operator.
+        # Residual variances
+        self.o_tot = np.sqrt(
+            (self.ssy / n))
         self.o_hat = np.sqrt(
             self.sse / n)
         self.s_hat = np.sqrt(
@@ -86,18 +91,16 @@ class Reg(object):
         self.x = x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
         self.y = y = frame[self.y_col].copy(deep=True).astype(np.float32).values
         self.n = frame.shape[0]
-        n, k = self.n, self.k
 
-        # other operations
-        self.qxx = np.matmul(np.transpose(x), x)
-        self.qxy = np.matmul(np.transpose(x), y)
-        self.qxx_inv = inv(self.qxx)
+        beta, sse, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
+        self.beta = beta
+        self.sse = sse
+        self.ssy = ssy
+        self.qxx = qxx
+        self.qxx_inv = qxx_inv
+        self.qxy = qxy
 
-        # Fit the regression
-        self.beta, self.sse, _, _ = lstsq(x, y)
-        self.ssy = ((y - y.mean()) ** 2).sum()
         self.residuals()
-
         self._is_fit = True
 
 
@@ -107,7 +110,7 @@ class Reg(object):
             You must run `fit` before calling `predict`.''')
 
         x = frame[self.x_cols].copy(deep=True).astype(np.float32).values
-        return np.matmul(x, self.beta)
+        return np.dot(x, self.beta)
 
 
     def r2(self, estimator='r-til2'):
@@ -147,14 +150,13 @@ class Reg(object):
             in call to `r2`.''')
 
         n, k = self.n, self.k
-        o2_yhat = self.ssy / self.n
 
         if estimator == 'r2':
-            r2 = (1 - (self.o_hat ** 2 / o2_yhat))
+            r2 = (1 - (self.o_hat / self.o_tot) ** 2)
         elif estimator == 'r-bar2':
-            r2 = (1 - (n - 1) / (n - k) * (self.o_hat ** 2 / o2_yhat))
+            r2 = (1 - (n - 1) / (n - k) * (self.o_hat / self.o_tot) ** 2)
         elif estimator == 'r-til2':
-            r2 = (1 - (self.o_til ** 2 / o2_yhat))
+            r2 = (1 - (self.o_til / self.o_tot) ** 2)
         else:
             raise NotImplementedError
 
@@ -204,6 +206,8 @@ class Reg(object):
         imprecise in some contexts. One is in the presence of sparse dummy
         variables when a dummy variable only takes the value 1 or 0 for very
         few observations.
+
+        SOURCE: Chapter 4.13 page 117; Chapter 4.14 pages 118-119.
         """
         if not self._is_fit:
             raise RuntimeError('''
@@ -235,11 +239,11 @@ class Reg(object):
             raise NotImplementedError
 
         qxx_inv = self.qxx_inv
-        omega = np.matmul(
+        xdx = np.matmul(
             np.multiply(np.transpose(x), e_hat),
             np.multiply(e_hat[:, np.newaxis], x)
         )
-        vce = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        vce = norm * np.matmul(np.matmul(qxx_inv, xdx), qxx_inv)
         return vce
 
 
@@ -332,9 +336,7 @@ class Reg(object):
         elif dist == 'student-t':
             cdf = lambda x: student_t.cdf(x, df=(self.n - self.k))
         else:
-            raise ValueError('''
-            Argument `dist` must be one of 'narmal' or 'student-t'
-            in call to `p_value`.''')
+            raise NotImplementedError
 
         t = self.beta / self.std_err(estimator=vce)
         return 2 * (1 - cdf(np.absolute(t)))
@@ -346,10 +348,7 @@ class Reg(object):
         it's point forecast. This is the forecast.  The mean-squared forecast
         error (MSFE) is its expected squared value.
 
-        SOURCES:
-
-            - Hansen, Chapter 4.121onto
-
+        SOURCE: Hansen, Chapter 4.12, page 115
         """
         if not self._is_fit:
             raise RuntimeError('''
@@ -362,11 +361,8 @@ class Reg(object):
         relative to the other values in the sample. A large hii occurs when xi
         is quite different from the other sample values.
 
-        SOURCES:
-
-            - https://stackoverflow.com/a/39534036/759442
-            - Hansen, Chapter 3.19
-
+        SOURCE: Hansen, Chapter 3.19, page 88
+            Also see: https://stackoverflow.com/a/39534036/759442
         """
         if not self._is_fit:
             raise RuntimeError('''
@@ -391,10 +387,7 @@ class Reg(object):
         a leverage point is not necessarily influential as the latter also
         requires that the prediction error e is large.
 
-        SOURCES:
-
-            - Hansen, Chapter 3.21
-
+        SOURCE: Hansen, Chapter 3.21, page 91.
         """
         self.leverage()
         return (self.h * self.e_til).max()
@@ -426,11 +419,43 @@ class Cluster(Reg):
     # Regression with cluster-robust inference.
 
     def __init__(self, x_cols, y_col, grp_col):
+
+        # Columns defining estimation
+        self.x_cols = x_cols
+        self.y_col = y_col
         self.grp_col = grp_col
+
+        self.k = len(x_cols)
+        self.n = None
+
+        # Data arrays
+        self.x = None
+        self.y = None
         self.grp = None
         self.grp_idx = None
 
-        super().__init__(x_cols, y_col)
+        # Flags
+        self._is_fit = False
+
+        # Hat matrices
+        self.qxx = None
+        self.qxy = None
+        self.qxx_inv = None
+
+        # Coefficients and errors
+        self.beta = None
+        self.sse = None
+        self.ssy = None
+
+        # Residuals
+        self.e_hat = None
+        self.e_til = None
+
+        # Residual variance estimators
+        self.o_tot = None
+        self.o_hat = None
+        self.s_hat = None
+        self.o_til = None
 
 
     def residuals(self):
@@ -452,22 +477,22 @@ class Cluster(Reg):
                     np.matmul(x[idx], self.qxx_inv),
                     np.transpose(x[idx])))
             self.e_til[idx], _, _, _ = lstsq(A, e_hat[idx])
-        self.e_bar = None # NOTE: not implemented
 
         # Summary stats
+        self.o_tot = np.sqrt(
+            self.ssy / n)
         self.o_hat = np.sqrt(
             self.sse / n)
         self.s_hat = np.sqrt(
             ((self.e_hat) ** 2).sum() / (n - k))
         self.o_til = np.sqrt(
             ((self.e_til) ** 2).sum() / n)
-        self.o_bar = None # NOTE: not implemented
 
 
     def fit(self, frame):
         """Regression with cluster-robust inference.
 
-        Discussion
+        discussion
         ----------
         There is a trade-off between bias and variance in the estimation of the
         covariance matrix by cluster-robust methods.
@@ -485,8 +510,12 @@ class Cluster(Reg):
         reported standard errors will be imprecise and more random than if
         clustering had been less aggregate.
         """
+
+        # Cache group columns and indices
         self.grp = frame[self.grp_col].copy(deep=True).astype(np.float32).values
         self.grp_idx = frame.groupby([self.grp_col]).indices
+
+        # Fit like you would in a normal regression context
         return super().fit(frame)
 
 
@@ -497,7 +526,7 @@ class Cluster(Reg):
 
     def r2(self, estimator='r-til2'):
         # TODO (121onto): confirm these calculations are reasonable in
-        #   a clustered regression.
+        #   a clustered regression context.
         return super().r2(estimator=estimator)
 
 
@@ -538,6 +567,8 @@ class Cluster(Reg):
         cluster (in the example, if only a single school was tracked) then the
         estimated coefficient on tracking will be very imprecisely estimated,
         yet will have a misleadingly small cluster standard error.
+
+        SOURCE: Hansen, Chapter 4.21, page 133
         """
         if not self._is_fit:
             raise RuntimeError('''
@@ -569,7 +600,7 @@ class Cluster(Reg):
             vec = np.dot(e_hat[idx], x[idx,:])
             omega = omega + np.outer(vec, vec)
 
-        vce = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        vce = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
         return vce
 
 
@@ -657,6 +688,9 @@ class CnsReg(Reg):
         self.x = None
         self.y = None
 
+        # Flags
+        self._is_fit = False
+
         # Hat matrices
         self.qxx = None
         self.qxy = None
@@ -667,20 +701,20 @@ class CnsReg(Reg):
         # Coefficient estimates
         self.beta_ols = None
         self.beta = None
-        self._is_fit = False
-
-        # Diagnostics
-        self.e_ols = None
-        self.e_hat = None
         self.sse_ols = None
         self.sse = None
         self.ssy = None
 
+        # Diagnostics
+        self.e_ols = None
+        self.e_til = None
+
         # Error variance estimators
+        self.o_tot = None
         self.o_ols = None
         self.s_ols = None
-        self.o_hat = None
-        self.s_hat = None
+        self.o_til = None
+        self.s_til = None
 
 
     def residuals(self):
@@ -694,7 +728,7 @@ class CnsReg(Reg):
 
         # residuals
         self.e_ols = e_ols = y - np.matmul(x, self.beta_ols)
-        self.e_til = e_til = y - np.matmul(x, self.beta)
+        self.e_til = e_hat = y - np.matmul(x, self.beta)
 
         # errors
         self.sse_ols = sse_ols = (e_ols ** 2).sum()
@@ -702,10 +736,11 @@ class CnsReg(Reg):
         self.sse = sse = (e_til ** 2).sum()
 
         # se estimators
+        self.o_tot = np.sqrt(ssy / n)
         self.o_ols = np.sqrt(sse_ols / n)
         self.s_ols = np.sqrt(sse_ols / (n - k))
-        self.o_hat = np.sqrt(sse / n)
-        self.s_hat = np.sqrt(sse / (n - k + q))
+        self.o_til = np.sqrt(sse / n)
+        self.s_til = np.sqrt(sse / (n - k + q))
 
 
     def fit(self, frame, r=None, c=None):
@@ -732,13 +767,12 @@ class CnsReg(Reg):
         self.n = frame.shape[0]
         n, k, q = self.n, self.k, self.q
 
-        # ols operations
-        self.qxx = np.matmul(np.transpose(x), x)
-        self.qxy = np.matmul(np.transpose(x), y)
-        self.qxx_inv = inv(self.qxx)
-
-        # Fit the unconstrained regression
-        self.beta_ols, _, _, _ = lstsq(x, y)
+        beta, _, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
+        self.beta_ols = beta
+        self.ssy = ssy
+        self.qxx = qxx
+        self.qxx_inv = qxx_inv
+        self.qxy = qxy
 
         # cls operations
         self.qi_r = qi_r = np.matmul(self.qxx_inv, r)
@@ -750,7 +784,6 @@ class CnsReg(Reg):
         # Fit the constrained regression
         self.beta = self.beta_ols - np.matmul(lhs, rhs)
         self.residuals()
-
         self._is_fit = True
 
 
@@ -784,13 +817,12 @@ class CnsReg(Reg):
         x, y = self.x, self.y
         n, k, q = self.n, self.k, self.q
 
-        o2_yhat = self.ssy / self.n
         if estimator == 'r2':
             o_hat = self.o_ols
-            r2 = (1 - (self.o_hat ** 2 / o2_yhat))
+            r2 = (1 - (o_hat / o_tot) ** 2)
         elif estimator == 'r-bar2':
-            o_hat = self.o_hat
-            r2 = (1 - (n - 1) / (n - k + q) * (o_hat ** 2 / o2_yhat))
+            o_hat = self.o_til
+            r2 = (1 - (n - 1) / (n - k + q) * (o_hat / o_tot) ** 2)
         else:
             raise NotImplementedError
 
@@ -833,7 +865,7 @@ class CnsReg(Reg):
         n, k, q = self.n, self.k, self.q
 
         if estimator == '0':
-            o_hat = self.s_hat
+            o_hat = self.s_til
             rhs,_,_,_ = lstsq(self.r_qi_r, np.transpose(self.qi_r))
             vce = (self.qxx_inv - np.matmul(self.qi_r, rhs)) * (o_hat ** 2)
             return vce
@@ -854,7 +886,7 @@ class CnsReg(Reg):
             np.multiply(np.transpose(x), e_hat),
             np.multiply(e_hat[:, np.newaxis], x)
         )
-        v_beta = (norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv))
+        v_beta = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
         solve_r,_,_,_ = lstsq(r_qi_r, np.transpose(r))
 
         lhs = np.matmul(qi_r, solve_r)

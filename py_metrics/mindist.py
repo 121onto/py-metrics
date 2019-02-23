@@ -6,6 +6,8 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 
+from py_metrics import core
+
 ###########################################################################
 # Minimum distnace
 ###########################################################################
@@ -102,16 +104,16 @@ class MinDist(object):
         n, k, q = self.n, self.k, self.q
 
         # ols operations
-        self.qxx = np.matmul(np.transpose(x), x)
-        self.qxy = np.matmul(np.transpose(x), y)
-        self.qxx_inv = inv(self.qxx)
-
-        # Fit the unconstrained regression
-        self.beta_ols, _, _, _ = lstsq(x, y)
+        beta, _, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
+        self.beta_ols = beta
+        self.ssy = ssy
+        self.qxx = qxx
+        self.qxx_inv = qxx_inv
+        self.qxy = qxy
 
         if weight_matrix == 'cls':
-            self.w = self.qxx
-            self.w_inv = self.qxx_inv
+            self.w = qxx
+            self.w_inv = qxx_inv
         elif weight_matrix == 'optimal':
             pass
         else:
