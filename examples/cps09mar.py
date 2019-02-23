@@ -9,7 +9,7 @@ import pandas as pd
 
 from py_metrics import caches, regress
 from py_metrics import nlcom
-from py_metrics import test
+from py_metrics import htest
 
 ###########################################################################
 # Featurize
@@ -247,12 +247,12 @@ def reg_4():
     gradient = lambda beta: [0, (-50 / beta[2]), (50 * beta[1] / (beta[2] ** 2)), 0]
     print('s(theta_3):', nlcom.std_err(reg, gradient=gradient)) # OUT: ~7.0
 
-    # Check that test.Wald returns reasonable results
+    # Check that htest.Wald returns reasonable results
     R = np.array([[100, 0, 0, 0], [0, 100, 20, 0]])
     theta = np.matmul(R, reg.beta)
     gradient = lambda beta: np.transpose(R)
     vce = nlcom.vce(reg, gradient=gradient) # [[0.632, 0.103], [0.103, 0.157]]
-    stat = test.Wald(theta, vce=vce)
+    stat = htest.Wald(theta, vce=vce)
     print('Wald (stat):', stat.value)
     print('Wald (p-value):', stat.p_value())
 
