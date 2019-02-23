@@ -10,13 +10,13 @@ from numpy.linalg import inv as np_inv
 from scipy.linalg import lstsq
 
 ###########################################################################
-# OLS
+# Least squares
 ###########################################################################
 
 # placeholder pp 279
 
-def _compute_ols(_sentinel=None, x=None, y=None, coefficient_only=False):
-    """Compute hat matrices for ols regression.
+def _least_squares(_sentinel=None, x=None, y=None):
+    """Computes the least squares regression coefficient.
 
     Parameters
     ----------
@@ -27,9 +27,7 @@ def _compute_ols(_sentinel=None, x=None, y=None, coefficient_only=False):
         Observations on the explanatory variables.
     y: np.array of type np.float with shape (n,)
         Observations on the dependent variable.
-    coefficient_only: boolean
-        Whether or not we should to compute the coefficient only (default False).
-        The function will be more efficient when this is set to True.
+
 
     Returns
     -------
@@ -37,34 +35,85 @@ def _compute_ols(_sentinel=None, x=None, y=None, coefficient_only=False):
         The ols estimate of the coefficient in a linear regression of x on y.
     sse: np.float32
         The sum of squared errors.
+    """
+    if _sentinel is not None:
+        raise ValueError('''
+        `_least_squares` accepts named kwargs only.''')
+    if x is None or y is None:
+        raise ValueError('''
+        Both `x` and `y` must be defined in call to `_least_squares`.''')
+
+    # Fit the regression
+    beta, sse, _, _ = lstsq(x, y)
+    return beta, sse
+
+
+def _ssy(_sentinel=None, y=None):
+    """Compute the sum of squared deviations of y from it's mean.
+
+    Parameters
+    ----------
+    _sentinel: (restricted)
+        Do not use this parameter, it is here to enforce the use of named
+        arguments.
+    y: np.array of type np.float with shape (n,)
+        Observations on the dependent variable.
+
+
+    Returns
+    -------
     ssy: np.float32
         The sum of squared deviations of y from it's mean.
-    qxx: np.array of type np.float32 and shape (k,k)
-        The hat-matrix Qxx, which is the empirical analogue of E[xx']
-        where x is a vector of shape (k,) representing a single observation.
-    qxy: np.array of type np.float32 and shape (k,)
-        The hat-matrix Qxy, which is the empirical analogue of E[xy]
-        where x is a vector of shape (k,) representing a single observation
-        and y is a scalar representing a single observation on the dependent
-        variable y.
 
     """
     if _sentinel is not None:
         raise ValueError('''
-        `_compute_ols` accepts named kwargs only.''')
-    if x is None or y is None:
+        `_ssy` accepts named kwargs only.''')
+
+    if y is None:
         raise ValueError('''
-        Both `x` and `y` must be defined in call to `_compute_ols`.''')
+        `y` must be defined in call to `_ssy`.''')
 
-    # Fit the regression
-    beta, sse, _, _ = lstsq(x, y)
-    if coefficient_only:
-        return beta, None, None, None, None, None
+    return ((y - y.mean()) ** 2).sum()
 
-    ssy = ((y - y.mean()) ** 2).sum()
 
-    qxx = np.einsum('ij,ik', x, x)
-    qxx_inv = np_inv(qxx)
-    qxy = np.einsum('ij,i', x, y)
+def _sandwich(_sentinel=None, x=None, w=None):
+    """Computes the sandwich form x'wx.
 
-    return beta, sse, ssy, qxx, qxx_inv, qxy
+    Parameters
+    ----------
+    _sentinel: (restricted)
+        Do not use this parameter, it is here to enforce the use of named
+        arguments.
+    x: np.array of type np.float with shape (k,m)
+        The matrix on the ouside of a sandwich form.
+    w: np.array of type np.float with shape (k,k) or (k,) (optional)
+        The matrix on the inside of a sandwich form.  Uses the identity
+        matrix in case w is not passed.  Uses np.diag(w) in case
+        a vector w is passed.
+
+    Returns
+    -------
+    x'wx: np.array of type np.float32 and shape (m,m)
+        The sandwich form built from x and w.
+    """
+    if _sentinel is not None:
+        raise ValueError('''
+        `_sandwich` accepts named kwargs only.''')
+
+    if x is None:
+        raise ValueError('''
+        `x` must be defined in call to `_sandwich`.''')
+
+    if w is None:
+        sandwich = np.einsum('ij,ik', x, x)
+    elif len(w.shape) == 1:
+        sandwich = np.einsum(
+            'ij,jk',
+            np.multiply(np.transpose(x), w),
+            np.multiply(w[:, np.newaxis], x)
+        )
+    else:
+        sandwich = np.einsum('ij,jk', np.einsum('ij,ik', x, w), x)
+
+    return sandwich

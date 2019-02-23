@@ -6,6 +6,9 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 
+from scipy.linalg import lstsq
+from numpy.linalg import inv
+
 from py_metrics import core
 
 ###########################################################################
@@ -45,7 +48,6 @@ class MinDist(object):
 
         # Hat matrices
         self.qxx = None
-        self.qxy = None
         self.qxx_inv = None
         self.wi_r = None
         self.r_wi_r = None
@@ -73,7 +75,7 @@ class MinDist(object):
         x, y = self.x, self.y
         n, k, q = self.n, self.k, self.q
 
-        self.ssy = ((y - y.mean()) ** 2).sum()
+        self.ssy = core._ssy(y=y)
         # ...
 
 
@@ -104,12 +106,10 @@ class MinDist(object):
         n, k, q = self.n, self.k, self.q
 
         # ols operations
-        beta, _, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
-        self.beta_ols = beta
-        self.ssy = ssy
-        self.qxx = qxx
-        self.qxx_inv = qxx_inv
-        self.qxy = qxy
+        self.beta_ols, _ = core._least_squares(x=x, y=y)
+        self.ssy = core._ssy(y=y)
+        self.qxx = core._sandwich(x=x)
+        self.qxx_inv = inv(qxx)
 
         if weight_matrix == 'cls':
             self.w = qxx

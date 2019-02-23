@@ -20,8 +20,6 @@ from py_metrics import core
 
 class Reg(object):
     def __init__(self, x_cols, y_col):
-        # TODO (121onto): enforce types, ensure everything gets defined
-
         # Columns defining estimation
         self.x_cols = x_cols
         self.y_col = y_col
@@ -38,7 +36,6 @@ class Reg(object):
 
         # Hat matrices
         self.qxx = None
-        self.qxy = None
         self.qxx_inv = None
 
         # Coefficients and errors
@@ -92,16 +89,13 @@ class Reg(object):
         self.y = y = frame[self.y_col].copy(deep=True).astype(np.float32).values
         self.n = frame.shape[0]
 
-        beta, sse, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
-        self.beta = beta
-        self.sse = sse
-        self.ssy = ssy
-        self.qxx = qxx
-        self.qxx_inv = qxx_inv
-        self.qxy = qxy
+        self.beta, self.sse = core._least_squares(x=x, y=y)
+        self.ssy = core._ssy(y=y)
+        self.qxx = qxx = core._sandwich(x=x)
+        self.qxx_inv = inv(qxx)
+        self._is_fit = True
 
         self.residuals()
-        self._is_fit = True
 
 
     def predict(self, frame):
@@ -238,13 +232,8 @@ class Reg(object):
         else:
             raise NotImplementedError
 
-        qxx_inv = self.qxx_inv
-        xdx = np.matmul(
-            np.multiply(np.transpose(x), e_hat),
-            np.multiply(e_hat[:, np.newaxis], x)
-        )
-        vce = norm * np.matmul(np.matmul(qxx_inv, xdx), qxx_inv)
-        return vce
+        xdx = core._sandwich(x=x, w=e_hat)
+        return norm * core._sandwich(x=self.qxx_inv, w=xdx)
 
 
     def ve(self, estimator='hc2'):
@@ -389,8 +378,7 @@ class Reg(object):
 
         SOURCE: Hansen, Chapter 3.21, page 91.
         """
-        self.leverage()
-        return (self.h * self.e_til).max()
+        return (self.leverage() * self.e_til).max()
 
 
     def summarize(self, dist='normal', vce='hc2'):
@@ -439,7 +427,6 @@ class Cluster(Reg):
 
         # Hat matrices
         self.qxx = None
-        self.qxy = None
         self.qxx_inv = None
 
         # Coefficients and errors
@@ -471,12 +458,9 @@ class Cluster(Reg):
         self.e_hat = e_hat = y - np.matmul(x, self.beta)
         self.e_til = np.zeros(e_hat.shape, dtype=np.float32)
         for grp, idx in self.grp_idx.items():
-            A = (
-                np.eye(len(idx)) -
-                np.matmul(
-                    np.matmul(x[idx], self.qxx_inv),
-                    np.transpose(x[idx])))
-            self.e_til[idx], _, _, _ = lstsq(A, e_hat[idx])
+            lhs = np.eye(len(idx))
+            rhs = core._sandwich(x=np.transpose(x[idx]), w=self.qxx_inv)
+            self.e_til[idx], _, _, _ = lstsq(lhs - rhs, e_hat[idx])
 
         # Summary stats
         self.o_tot = np.sqrt(
@@ -600,8 +584,7 @@ class Cluster(Reg):
             vec = np.dot(e_hat[idx], x[idx,:])
             omega = omega + np.outer(vec, vec)
 
-        vce = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
-        return vce
+        return norm * core._sandwich(x=qxx_inv, w=omega)
 
 
     def ve(self, estimator='cr3'):
@@ -693,7 +676,6 @@ class CnsReg(Reg):
 
         # Hat matrices
         self.qxx = None
-        self.qxy = None
         self.qxx_inv = None
         self.qi_r = None
         self.r_qi_r = None
@@ -732,7 +714,6 @@ class CnsReg(Reg):
 
         # errors
         self.sse_ols = sse_ols = (e_ols ** 2).sum()
-        self.ssy = ((y - y.mean()) ** 2).sum()
         self.sse = sse = (e_til ** 2).sum()
 
         # se estimators
@@ -767,12 +748,10 @@ class CnsReg(Reg):
         self.n = frame.shape[0]
         n, k, q = self.n, self.k, self.q
 
-        beta, _, ssy, qxx, qxx_inv, qxy = core._compute_ols(x=x, y=y)
-        self.beta_ols = beta
-        self.ssy = ssy
-        self.qxx = qxx
-        self.qxx_inv = qxx_inv
-        self.qxy = qxy
+        self.beta_ols, _ = core._least_squares(x=x, y=y)
+        self.ssy = core._ssy(y=y)
+        self.qxx = core._sandwich(x=x)
+        self.qxx_inv = inv(qxx)
 
         # cls operations
         self.qi_r = qi_r = np.matmul(self.qxx_inv, r)
@@ -783,8 +762,9 @@ class CnsReg(Reg):
 
         # Fit the constrained regression
         self.beta = self.beta_ols - np.matmul(lhs, rhs)
-        self.residuals()
         self._is_fit = True
+
+        self.residuals()
 
 
     def predict(self, frame):
@@ -808,7 +788,7 @@ class CnsReg(Reg):
         ----------
         These are ad-hoc at this point.
 
-        TODO (121onto): confirm these estimates are reasonable.
+        TODO (121onto): confirm these calculations are reasonable.
         """
         if estimator not in ('r2', 'r-bar2'):
             raise ValueError('''
@@ -882,11 +862,8 @@ class CnsReg(Reg):
             raise NotImplementedError
 
         qxx_inv, qi_r, r_qi_r = self.qxx_inv, self.qi_r, self.r_qi_r
-        omega = np.matmul(
-            np.multiply(np.transpose(x), e_hat),
-            np.multiply(e_hat[:, np.newaxis], x)
-        )
-        v_beta = norm * np.matmul(np.matmul(qxx_inv, omega), qxx_inv)
+        omega= core._sandwich(x=x, w=e_hat)
+        v_beta = norm * core._sandwich(x=qxx_inv, w=omega)
         solve_r,_,_,_ = lstsq(r_qi_r, np.transpose(r))
 
         lhs = np.matmul(qi_r, solve_r)

@@ -34,7 +34,7 @@ setup(
     author_email='121onto@gmail.com',
 
     cmdclass={'develop': Cache},
-    packages=find_packages(exclude=['output', 'tests', 'examples']),
+    packages=find_packages(exclude=['data', 'examples', 'cache']),
     include_package_data=True,
 
     install_requires=[

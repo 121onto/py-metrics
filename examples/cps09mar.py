@@ -7,7 +7,8 @@ import functools
 import numpy as np
 import pandas as pd
 
-from py_metrics import caches, regress
+from storage import data_path
+from py_metrics import regress
 from py_metrics import nlcom
 from py_metrics import htest
 
@@ -146,7 +147,7 @@ def filter_4(frame):
 
 def reg_1():
     # SOURCE: Hansen, Chapters 3.7, equation 3.13, page 75
-    filename = caches.data_path('cps09mar.txt')
+    filename = data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_1(frame)
@@ -170,7 +171,7 @@ def reg_1():
 
 def reg_2():
     # SOURCE: Hansen, Chapters 3.7, equation 3.14, pages 76.
-    filename = caches.data_path('cps09mar.txt')
+    filename = data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_2(frame)
@@ -187,7 +188,7 @@ def reg_2():
 
 def reg_3():
     # SOURCE: Hansen, Chapters 4.19, page 126.
-    filename = caches.data_path('cps09mar.txt')
+    filename = data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_3(frame)
@@ -220,7 +221,7 @@ def reg_3():
 
 def reg_4():
     # see Chapter 7.11
-    filename = caches.data_path('cps09mar.txt')
+    filename = data_path('cps09mar.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_4(frame)

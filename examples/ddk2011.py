@@ -7,7 +7,8 @@ import functools
 import numpy as np
 import pandas as pd
 
-from py_metrics import caches, regress
+from storage import data_path
+from py_metrics import regress
 
 ###########################################################################
 # Featurize
@@ -40,7 +41,7 @@ def filter_1(frame):
 
 def reg_1():
     # SOURCE: Hansen, Chapters 4.21, equation 3.4.41, page 130
-    filename = caches.data_path('ddk2011.txt')
+    filename = data_path('ddk2011.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_1(frame)
@@ -55,7 +56,7 @@ def reg_1():
 
 def reg_2():
     # SOURCE: Hansen, Chapters 4.21, equation 3.4.41, page 130
-    filename = caches.data_path('ddk2011.txt')
+    filename = data_path('ddk2011.txt')
     frame = pd.read_csv(filename)
     frame = featurize(frame)
     frame = filter_1(frame)
